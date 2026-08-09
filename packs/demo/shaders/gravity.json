@@ -1,0 +1,17 @@
+{
+  "desc": "orbiting-attractor feedback lens",
+  "params": [
+    {
+      "name": "mix",
+      "help": "feedback amount + shadow key"
+    },
+    {
+      "name": "gravity",
+      "help": "lens pull strength"
+    },
+    {
+      "name": "orbit",
+      "help": "attractor speed + radius"
+    }
+  ]
+}

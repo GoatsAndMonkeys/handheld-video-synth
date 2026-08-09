@@ -1,0 +1,17 @@
+{
+  "desc": "waaave bank: symmetry",
+  "params": [
+    {
+      "name": "mix",
+      "help": "feedback amount"
+    },
+    {
+      "name": "zoom",
+      "help": "in <-> out"
+    },
+    {
+      "name": "mode",
+      "help": "off/horiz/vert/kaleido"
+    }
+  ]
+}

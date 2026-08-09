@@ -1,0 +1,17 @@
+{
+  "desc": "chaotic video oscillators",
+  "params": [
+    {
+      "name": "freq",
+      "help": "oscillator frequency"
+    },
+    {
+      "name": "vidmod",
+      "help": "video phase-mod depth"
+    },
+    {
+      "name": "spiral",
+      "help": "rotate + spiral shear"
+    }
+  ]
+}

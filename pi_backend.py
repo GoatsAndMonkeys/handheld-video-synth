@@ -1,0 +1,469 @@
+"""Raspberry Pi legacy-driver backend: dispmanx EGL window + GLES2 via ctypes.
+
+Targets RetroPie/Raspbian Buster on the Broadcom VideoCore stack (/opt/vc) —
+the same platform recurBOY and the RetroPie openFrameworks synths use. No X,
+no KMS, no SDL: we create a fullscreen dispmanx element and a GLES2 context
+on it directly. Python 3.7 compatible.
+
+Exposes:
+  GL             — PyOpenGL-lookalike wrapper (just the calls the engine uses)
+  GLES_PREAMBLE  — shader preamble for GLES2
+  PiWindow       — fullscreen EGL window (init/flip/size)
+  PiInput        — evdev gamepad -> logical event strings
+  text_image / glyph_atlas / save_png — PIL-based helpers
+"""
+import ctypes
+import os
+import time
+
+GLES_PREAMBLE = "precision mediump float;\n"
+
+_VC = "/opt/vc/lib/"
+
+
+# --------------------------------------------------------------------------
+# EGL / dispmanx window
+# --------------------------------------------------------------------------
+class _EGL_DISPMANX_WINDOW_T(ctypes.Structure):
+    _fields_ = [("element", ctypes.c_int32),
+                ("width", ctypes.c_int32),
+                ("height", ctypes.c_int32)]
+
+
+class _VC_RECT_T(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_int32), ("y", ctypes.c_int32),
+                ("width", ctypes.c_int32), ("height", ctypes.c_int32)]
+
+
+EGL_SURFACE_TYPE = 0x3033
+EGL_WINDOW_BIT = 0x0004
+EGL_RENDERABLE_TYPE = 0x3040
+EGL_OPENGL_ES2_BIT = 0x0004
+EGL_RED_SIZE, EGL_GREEN_SIZE, EGL_BLUE_SIZE, EGL_ALPHA_SIZE = 0x3024, 0x3023, 0x3022, 0x3021
+EGL_DEPTH_SIZE = 0x3025
+EGL_NONE = 0x3038
+EGL_CONTEXT_CLIENT_VERSION = 0x3098
+EGL_OPENGL_ES_API = 0x30A0
+
+
+class PiWindow:
+    def __init__(self):
+        # GLESv2 must load first with RTLD_GLOBAL: libbrcmEGL links its symbols
+        self.bcm = ctypes.CDLL(_VC + "libbcm_host.so", mode=ctypes.RTLD_GLOBAL)
+        self.glib = ctypes.CDLL(_VC + "libbrcmGLESv2.so", mode=ctypes.RTLD_GLOBAL)
+        self.egl = ctypes.CDLL(_VC + "libbrcmEGL.so", mode=ctypes.RTLD_GLOBAL)
+        self.bcm.bcm_host_init()
+
+        w, h = ctypes.c_uint32(0), ctypes.c_uint32(0)
+        if self.bcm.graphics_get_display_size(0, ctypes.byref(w), ctypes.byref(h)) < 0:
+            raise RuntimeError("graphics_get_display_size failed")
+        self.width, self.height = int(w.value), int(h.value)
+
+        e = self.egl
+        e.eglGetDisplay.restype = ctypes.c_void_p
+        e.eglCreateContext.restype = ctypes.c_void_p
+        e.eglCreateWindowSurface.restype = ctypes.c_void_p
+        self.display = e.eglGetDisplay(ctypes.c_void_p(0))
+        if not self.display:
+            raise RuntimeError("eglGetDisplay failed")
+        if not e.eglInitialize(ctypes.c_void_p(self.display), None, None):
+            raise RuntimeError("eglInitialize failed")
+
+        cfg_attribs = (ctypes.c_int32 * 13)(
+            EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8,
+            EGL_ALPHA_SIZE, 8, EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_NONE)
+        config = ctypes.c_void_p()
+        ncfg = ctypes.c_int32()
+        if not e.eglChooseConfig(ctypes.c_void_p(self.display), cfg_attribs,
+                                 ctypes.byref(config), 1, ctypes.byref(ncfg)) or ncfg.value < 1:
+            raise RuntimeError("eglChooseConfig failed")
+        e.eglBindAPI(EGL_OPENGL_ES_API)
+
+        ctx_attribs = (ctypes.c_int32 * 3)(EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE)
+        self.context = e.eglCreateContext(ctypes.c_void_p(self.display), config,
+                                          ctypes.c_void_p(0), ctx_attribs)
+        if not self.context:
+            raise RuntimeError("eglCreateContext failed")
+
+        dst = _VC_RECT_T(0, 0, self.width, self.height)
+        src = _VC_RECT_T(0, 0, self.width << 16, self.height << 16)
+        disp = self.bcm.vc_dispmanx_display_open(0)
+        update = self.bcm.vc_dispmanx_update_start(0)
+        element = self.bcm.vc_dispmanx_element_add(
+            update, disp, 2000,  # layer above ES
+            ctypes.byref(dst), 0, ctypes.byref(src),
+            0, 0, 0, 0)
+        self.bcm.vc_dispmanx_update_submit_sync(update)
+
+        self._nativewindow = _EGL_DISPMANX_WINDOW_T(element, self.width, self.height)
+        self.surface = e.eglCreateWindowSurface(ctypes.c_void_p(self.display), config,
+                                                ctypes.byref(self._nativewindow), None)
+        if not self.surface:
+            raise RuntimeError("eglCreateWindowSurface failed")
+        if not e.eglMakeCurrent(ctypes.c_void_p(self.display), ctypes.c_void_p(self.surface),
+                                ctypes.c_void_p(self.surface), ctypes.c_void_p(self.context)):
+            raise RuntimeError("eglMakeCurrent failed")
+
+    def flip(self):
+        self.egl.eglSwapBuffers(ctypes.c_void_p(self.display), ctypes.c_void_p(self.surface))
+
+
+# --------------------------------------------------------------------------
+# GLES2 wrapper (PyOpenGL-flavored: same names/semantics as the calls we use)
+# --------------------------------------------------------------------------
+class _GLES2:
+    GL_FRAGMENT_SHADER = 0x8B30
+    GL_VERTEX_SHADER = 0x8B31
+    GL_COMPILE_STATUS = 0x8B81
+    GL_LINK_STATUS = 0x8B82
+    GL_TEXTURE_2D = 0x0DE1
+    GL_TEXTURE0 = 0x84C0
+    GL_NEAREST = 0x2600
+    GL_LINEAR = 0x2601
+    GL_TEXTURE_MIN_FILTER = 0x2801
+    GL_TEXTURE_MAG_FILTER = 0x2800
+    GL_TEXTURE_WRAP_S = 0x2802
+    GL_TEXTURE_WRAP_T = 0x2803
+    GL_CLAMP_TO_EDGE = 0x812F
+    GL_REPEAT = 0x2901
+    GL_UNPACK_ALIGNMENT = 0x0CF5
+    GL_PACK_ALIGNMENT = 0x0D05
+    GL_RGB = 0x1907
+    GL_UNSIGNED_BYTE = 0x1401
+    GL_ARRAY_BUFFER = 0x8892
+    GL_STATIC_DRAW = 0x88E4
+    GL_FLOAT = 0x1406
+    GL_TRIANGLES = 0x0004
+    GL_SCISSOR_TEST = 0x0C11
+
+    def __init__(self, lib):
+        self._g = lib
+        self._g.glCreateShader.restype = ctypes.c_uint32
+        self._g.glCreateProgram.restype = ctypes.c_uint32
+        self._g.glGetUniformLocation.restype = ctypes.c_int32
+
+    @staticmethod
+    def _ptr(data):
+        if data is None:
+            return None
+        if not isinstance(data, (bytes, bytearray)):
+            data = data.tobytes()  # numpy array or similar
+        return ctypes.cast(ctypes.create_string_buffer(bytes(data), len(data)),
+                           ctypes.c_void_p)
+
+    def glCreateShader(self, kind):
+        return self._g.glCreateShader(kind)
+
+    def glShaderSource(self, sid, src):
+        buf = ctypes.create_string_buffer(src.encode("utf-8"))
+        arr = (ctypes.c_char_p * 1)(ctypes.cast(buf, ctypes.c_char_p))
+        self._g.glShaderSource(sid, 1, arr, None)
+
+    def glCompileShader(self, sid):
+        self._g.glCompileShader(sid)
+
+    def glGetShaderiv(self, sid, pname):
+        v = ctypes.c_int32(0)
+        self._g.glGetShaderiv(sid, pname, ctypes.byref(v))
+        return v.value
+
+    def glGetShaderInfoLog(self, sid):
+        buf = ctypes.create_string_buffer(4096)
+        ln = ctypes.c_int32(0)
+        self._g.glGetShaderInfoLog(sid, 4096, ctypes.byref(ln), buf)
+        return buf.raw[:ln.value]
+
+    def glCreateProgram(self):
+        return self._g.glCreateProgram()
+
+    def glAttachShader(self, pid, sid):
+        self._g.glAttachShader(pid, sid)
+
+    def glBindAttribLocation(self, pid, idx, name):
+        self._g.glBindAttribLocation(pid, idx, name.encode())
+
+    def glLinkProgram(self, pid):
+        self._g.glLinkProgram(pid)
+
+    def glGetProgramiv(self, pid, pname):
+        v = ctypes.c_int32(0)
+        self._g.glGetProgramiv(pid, pname, ctypes.byref(v))
+        return v.value
+
+    def glGetProgramInfoLog(self, pid):
+        buf = ctypes.create_string_buffer(4096)
+        ln = ctypes.c_int32(0)
+        self._g.glGetProgramInfoLog(pid, 4096, ctypes.byref(ln), buf)
+        return buf.raw[:ln.value]
+
+    def glGetUniformLocation(self, pid, name):
+        return self._g.glGetUniformLocation(pid, name.encode())
+
+    def glUseProgram(self, pid):
+        self._g.glUseProgram(pid)
+
+    def glUniform1f(self, loc, v):
+        self._g.glUniform1f(loc, ctypes.c_float(v))
+
+    def glUniform2f(self, loc, x, y):
+        self._g.glUniform2f(loc, ctypes.c_float(x), ctypes.c_float(y))
+
+    def glUniform1i(self, loc, v):
+        self._g.glUniform1i(loc, v)
+
+    def glUniform4f(self, loc, a, b, c, d):
+        self._g.glUniform4f(loc, ctypes.c_float(a), ctypes.c_float(b),
+                            ctypes.c_float(c), ctypes.c_float(d))
+
+    def glActiveTexture(self, unit):
+        self._g.glActiveTexture(unit)
+
+    def glGenTextures(self, n):
+        v = ctypes.c_uint32(0)
+        self._g.glGenTextures(1, ctypes.byref(v))
+        return v.value
+
+    def glBindTexture(self, target, tex):
+        self._g.glBindTexture(target, int(tex))
+
+    def glTexParameteri(self, target, pname, val):
+        self._g.glTexParameteri(target, pname, val)
+
+    def glPixelStorei(self, pname, val):
+        self._g.glPixelStorei(pname, val)
+
+    def glTexImage2D(self, target, level, internal, w, h, border, fmt, typ, data):
+        self._g.glTexImage2D(target, level, internal, w, h, border, fmt, typ,
+                             self._ptr(data))
+
+    def glTexSubImage2D(self, target, level, x, y, w, h, fmt, typ, data):
+        self._g.glTexSubImage2D(target, level, x, y, w, h, fmt, typ, self._ptr(data))
+
+    def glCopyTexSubImage2D(self, target, level, xo, yo, x, y, w, h):
+        self._g.glCopyTexSubImage2D(target, level, xo, yo, x, y, w, h)
+
+    def glGenBuffers(self, n):
+        v = ctypes.c_uint32(0)
+        self._g.glGenBuffers(1, ctypes.byref(v))
+        return v.value
+
+    def glBindBuffer(self, target, buf):
+        self._g.glBindBuffer(target, int(buf))
+
+    def glBufferData(self, target, nbytes, data, usage):
+        self._g.glBufferData(target, nbytes, self._ptr(data), usage)
+
+    def glEnableVertexAttribArray(self, idx):
+        self._g.glEnableVertexAttribArray(idx)
+
+    def glVertexAttribPointer(self, idx, size, typ, normalized, stride, offset):
+        self._g.glVertexAttribPointer(idx, size, typ, 1 if normalized else 0,
+                                      stride, offset)
+
+    def glDrawArrays(self, mode, first, count):
+        self._g.glDrawArrays(mode, first, count)
+
+    def glViewport(self, x, y, w, h):
+        self._g.glViewport(x, y, w, h)
+
+    def glEnable(self, cap):
+        self._g.glEnable(cap)
+
+    def glDisable(self, cap):
+        self._g.glDisable(cap)
+
+    def glScissor(self, x, y, w, h):
+        self._g.glScissor(x, y, w, h)
+
+    def glReadPixels(self, x, y, w, h, fmt, typ):
+        buf = ctypes.create_string_buffer(w * h * 3)
+        self._g.glReadPixels(x, y, w, h, fmt, typ, buf)
+        return buf.raw
+
+
+class _GLProxy:
+    """Engine imports GL before the EGL context exists; delegate lazily."""
+    _real = None
+
+    def __getattr__(self, name):
+        if _GLProxy._real is None:
+            raise RuntimeError("GL not initialized — create PiWindow + init_gl first")
+        return getattr(_GLProxy._real, name)
+
+
+GL = _GLProxy()
+
+
+def init_gl(window):
+    _GLProxy._real = _GLES2(window.glib)
+    return GL
+
+
+# --------------------------------------------------------------------------
+# Input: evdev gamepad -> logical events
+# --------------------------------------------------------------------------
+class PiInput:
+    """Maps any attached gamepad to the instrument's logical events.
+
+    BTN_TL/BTN_TR -> prev/next effect; d-pad (hat or digital sticks) ->
+    param row select / nudge; SELECT -> ui toggle; START -> source cycle;
+    SELECT+START held together -> quit.
+    """
+    REPEAT_S = 0.13
+
+    def __init__(self):
+        import evdev
+        self.evdev = evdev
+        self.devices = []
+        self._scan()
+        self.held = {}          # code -> True for buttons
+        self.axis = {"x": 0, "y": 0}
+        self._absinfo = {}
+        self._next_repeat = 0.0  # typematic: first repeat waits, then ticks
+        self._last_scan = time.time()
+
+    def _scan(self):
+        self.devices = []
+        for path in self.evdev.list_devices():
+            try:
+                d = self.evdev.InputDevice(path)
+                if self.evdev.ecodes.EV_KEY in d.capabilities():
+                    self.devices.append(d)
+            except OSError:
+                pass
+
+    def _digital(self, dev, code, value):
+        """Normalize any axis range (0..255, -32k..32k, ...) to -1/0/1."""
+        info = self._absinfo.get((dev.path, code))
+        if info is None:
+            info = dict(dev.capabilities().get(self.evdev.ecodes.EV_ABS, [])).get(code)
+            self._absinfo[(dev.path, code)] = info
+        if info is None or info.max == info.min:
+            return 0
+        norm = (value - info.min) / float(info.max - info.min)
+        return -1 if norm < 0.25 else (1 if norm > 0.75 else 0)
+
+    def _axis_state(self, dev, code, value):
+        ec = self.evdev.ecodes
+        if code in (ec.ABS_HAT0X, ec.ABS_X):
+            if code == ec.ABS_X:
+                value = self._digital(dev, code, value)
+            self.axis["x"] = value
+            return True
+        if code in (ec.ABS_HAT0Y, ec.ABS_Y):
+            if code == ec.ABS_Y:
+                value = self._digital(dev, code, value)
+            self.axis["y"] = value
+            return True
+        return False
+
+    def poll(self):
+        ec = self.evdev.ecodes
+        events = []
+        dead = []
+        if not self.devices and time.time() - self._last_scan > 3.0:
+            self._scan()          # controller came back? reattach
+            self._last_scan = time.time()
+        for d in self.devices:
+            try:
+                while True:
+                    e = d.read_one()
+                    if e is None:
+                        break
+                    if e.type == ec.EV_KEY:
+                        self.held[e.code] = bool(e.value)
+                        if e.code == ec.BTN_SOUTH:
+                            events.append("punch_on" if e.value else "punch_off")
+                        elif e.value == 1:  # press
+                            if e.code == ec.BTN_TL:
+                                events.append("prev")
+                            elif e.code == ec.BTN_TR:
+                                events.append("next")
+                            elif e.code == ec.BTN_SELECT:
+                                events.append("ui")
+                            elif e.code == ec.BTN_START:
+                                events.append("src")
+                            elif e.code == ec.BTN_EAST:
+                                events.append("randomize")
+                            elif e.code == ec.BTN_WEST:
+                                events.append("freeze")
+                            elif e.code == ec.BTN_NORTH:
+                                events.append("lfo")
+                    elif e.type == ec.EV_ABS:
+                        old = dict(self.axis)
+                        if self._axis_state(d, e.code, e.value):
+                            fresh = False
+                            if self.axis["y"] == -1 and old["y"] != -1:
+                                events.append("up")
+                                fresh = True
+                            elif self.axis["y"] == 1 and old["y"] != 1:
+                                events.append("down")
+                                fresh = True
+                            if self.axis["x"] == -1 and old["x"] != -1:
+                                events.append("left")
+                            elif self.axis["x"] == 1 and old["x"] != 1:
+                                events.append("right")
+                            if fresh:  # hold-repeat only after a grace period
+                                self._next_repeat = time.time() + 0.35
+            except OSError:
+                dead.append(d)
+        if dead:
+            self.devices = [d for d in self.devices if d not in dead]
+            self._last_scan = time.time()
+
+        # auto-repeat held up/down for continuous value sweeps
+        now = time.time()
+        if self.axis["y"] != 0 and now >= self._next_repeat:
+            events.append("up" if self.axis["y"] == -1 else "down")
+            self._next_repeat = now + self.REPEAT_S
+
+        ecodes = self.evdev.ecodes
+        if self.held.get(ecodes.BTN_SELECT) and self.held.get(ecodes.BTN_START):
+            events.append("quit")
+        return events
+
+
+# --------------------------------------------------------------------------
+# PIL text helpers (top-down HxWx3 uint8 arrays)
+# --------------------------------------------------------------------------
+_FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+
+
+def _font(size):
+    from PIL import ImageFont
+    try:
+        return ImageFont.truetype(_FONT_PATH, size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def text_image(lines, w, h):
+    """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim."""
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (w, h), (10, 10, 14))
+    dr = ImageDraw.Draw(img)
+    for i, line in enumerate(lines):
+        if i == 0:
+            dr.text((8, 4), line, fill=(120, 255, 150), font=_font(14))
+        else:
+            dr.text((8, 26 + (i - 1) * 15), line, fill=(150, 150, 170),
+                    font=_font(11))
+    return img.transpose(Image.FLIP_TOP_BOTTOM).tobytes()
+
+
+def glyph_atlas(chars):
+    """Returns (bottom-up RGB bytes, width, height)."""
+    from PIL import Image, ImageDraw
+    font = _font(28)
+    cw, chh = font.getsize("@")
+    img = Image.new("RGB", (cw * len(chars), chh), (0, 0, 0))
+    dr = ImageDraw.Draw(img)
+    for i, c in enumerate(chars):
+        dr.text((i * cw, 0), c, fill=(255, 255, 255), font=font)
+    return img.transpose(Image.FLIP_TOP_BOTTOM).tobytes(), cw * len(chars), chh
+
+
+def save_png(raw_topdown, w, h, path):
+    from PIL import Image
+    Image.frombytes("RGB", (w, h), raw_topdown).save(path)

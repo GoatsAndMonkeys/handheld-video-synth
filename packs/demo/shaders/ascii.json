@@ -1,0 +1,17 @@
+{
+  "desc": "ASCII terminal filter",
+  "params": [
+    {
+      "name": "cells",
+      "help": "character grid density"
+    },
+    {
+      "name": "color",
+      "help": "green mono <-> source color"
+    },
+    {
+      "name": "gain",
+      "help": "brightness gain into glyphs"
+    }
+  ]
+}

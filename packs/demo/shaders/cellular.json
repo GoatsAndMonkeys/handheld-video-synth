@@ -1,0 +1,17 @@
+{
+  "desc": "numerical feedback automata",
+  "params": [
+    {
+      "name": "inject",
+      "help": "video seed amount"
+    },
+    {
+      "name": "growth",
+      "help": "chaos growth rate"
+    },
+    {
+      "name": "cells",
+      "help": "cell size"
+    }
+  ]
+}

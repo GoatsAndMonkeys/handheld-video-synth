@@ -1,0 +1,17 @@
+{
+  "desc": "waaave feedback core",
+  "params": [
+    {
+      "name": "mix",
+      "help": "feedback amount + shadow key"
+    },
+    {
+      "name": "zoom",
+      "help": "in <-> out"
+    },
+    {
+      "name": "drift",
+      "help": "hue drift + rotate"
+    }
+  ]
+}

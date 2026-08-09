@@ -1,0 +1,17 @@
+{
+  "desc": "waaave bank: color life/death",
+  "params": [
+    {
+      "name": "sat",
+      "help": "feedback saturation"
+    },
+    {
+      "name": "bright",
+      "help": "decay <-> bloom"
+    },
+    {
+      "name": "chaos",
+      "help": "chaotic huezones"
+    }
+  ]
+}

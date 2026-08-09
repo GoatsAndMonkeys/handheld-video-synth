@@ -1,0 +1,17 @@
+{
+  "desc": "color corrector",
+  "params": [
+    {
+      "name": "contr",
+      "help": "contrast crush <-> punch"
+    },
+    {
+      "name": "sat",
+      "help": "greyscale <-> oversaturated"
+    },
+    {
+      "name": "hue",
+      "help": "rotate all hues"
+    }
+  ]
+}

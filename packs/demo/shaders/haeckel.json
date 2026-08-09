@@ -1,0 +1,17 @@
+{
+  "desc": "superformula radiolaria",
+  "params": [
+    {
+      "name": "lobes",
+      "help": "2-16 symmetry lobes"
+    },
+    {
+      "name": "form",
+      "help": "shape exponents morph"
+    },
+    {
+      "name": "trail",
+      "help": "edge glow + feedback trails"
+    }
+  ]
+}

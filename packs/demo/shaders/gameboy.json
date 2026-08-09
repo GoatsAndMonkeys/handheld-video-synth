@@ -1,0 +1,17 @@
+{
+  "desc": "4-shade handheld dither",
+  "params": [
+    {
+      "name": "pixel",
+      "help": "chunky <-> fine pixels"
+    },
+    {
+      "name": "pal",
+      "help": "palette hue"
+    },
+    {
+      "name": "dither",
+      "help": "dither strength"
+    }
+  ]
+}

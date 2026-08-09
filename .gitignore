@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+shots/
+*.pyc
+stream.json
+packs/*/playlists/deck.json
+packs/*/clips/*.mp4

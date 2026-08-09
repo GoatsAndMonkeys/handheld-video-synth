@@ -1,0 +1,17 @@
+{
+  "desc": "waaave bank: drift",
+  "params": [
+    {
+      "name": "xdrift",
+      "help": "slide feedback left/right"
+    },
+    {
+      "name": "ydrift",
+      "help": "slide feedback up/down"
+    },
+    {
+      "name": "rot",
+      "help": "rotate feedback"
+    }
+  ]
+}

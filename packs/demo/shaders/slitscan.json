@@ -1,0 +1,17 @@
+{
+  "desc": "slit scan time smear",
+  "params": [
+    {
+      "name": "speed",
+      "help": "scanline speed"
+    },
+    {
+      "name": "slit",
+      "help": "slit width"
+    },
+    {
+      "name": "dir",
+      "help": "sweep down <-> across"
+    }
+  ]
+}

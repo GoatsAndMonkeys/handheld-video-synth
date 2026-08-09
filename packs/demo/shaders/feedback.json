@@ -1,0 +1,17 @@
+{
+  "desc": "simple max-blend trails",
+  "params": [
+    {
+      "name": "amount",
+      "help": "trail persistence"
+    },
+    {
+      "name": "zoom",
+      "help": "trails pull in <-> push out"
+    },
+    {
+      "name": "hue",
+      "help": "hue drift per frame"
+    }
+  ]
+}

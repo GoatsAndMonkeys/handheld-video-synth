@@ -1,0 +1,55 @@
+{
+  "name": "waaave zone (banks)",
+  "steps": [
+    {
+      "shader": "waaave",
+      "x": [
+        0.55,
+        0.65,
+        0.6
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "waaave_warp",
+      "x": [
+        0.5,
+        0.42,
+        0.62
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "waaave_color",
+      "x": [
+        0.6,
+        0.55,
+        0.4
+      ],
+      "speed": 0.5,
+      "lfo": [
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "shader": "waaave_mirror",
+      "x": [
+        0.75,
+        0.35,
+        0.6
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "feedback",
+      "x": [
+        0.75,
+        0.6,
+        0.6
+      ],
+      "speed": 0.5
+    }
+  ]
+}

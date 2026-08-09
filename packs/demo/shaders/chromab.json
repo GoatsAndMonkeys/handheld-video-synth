@@ -1,0 +1,17 @@
+{
+  "desc": "band colorizer / solarizer",
+  "params": [
+    {
+      "name": "bands",
+      "help": "2-8 brightness bands"
+    },
+    {
+      "name": "spread",
+      "help": "hue spread across bands"
+    },
+    {
+      "name": "fold",
+      "help": "solarize brightness fold"
+    }
+  ]
+}
