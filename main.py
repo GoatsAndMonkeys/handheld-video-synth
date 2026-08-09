@@ -801,6 +801,8 @@ class Instrument:
         self.deck_path = os.path.join(self.pack_dir, "playlists", "deck.json")
         self.deck = []
         self.deck_idx = 0
+        self.deck_mode = False   # False = build (L/R browses effects),
+                                 # True = play (L/R walks saved scenes)
         if os.path.exists(self.deck_path):
             try:
                 with open(self.deck_path) as f:
@@ -861,7 +863,7 @@ class Instrument:
         return pl
 
     def cur_step(self):
-        if self.deck:
+        if self.deck and self.deck_mode:
             return self.deck[self.deck_idx % len(self.deck)]
         return self.playlist["steps"][self.step_idx]
 
@@ -940,7 +942,7 @@ class Instrument:
             json.dump({"name": "deck", "steps": self.deck}, f, indent=2)
 
     def step(self, delta):
-        if self.deck:
+        if self.deck and self.deck_mode:
             self.deck_idx = (self.deck_idx + delta) % len(self.deck)
             sc = self.deck[self.deck_idx]
             self._ensure_program(sc["shader"])
@@ -976,8 +978,9 @@ class Instrument:
         if key == "output":
             return ["screen", "mixer", "recording", "LIVE"][self.output_idx]
         if key == "sets":
-            return "deck mode" if self.deck else self.playlist_name
-        return "%d scenes" % len(self.deck)
+            return self.playlist_name
+        return "%d scenes%s" % (len(self.deck),
+                                "  PLAYING" if self.deck_mode else "")
 
     def _menu_rows(self):
         if self.menu_level == 0:
@@ -1012,6 +1015,10 @@ class Instrument:
                 rows.append(("set", i, "%s  (%s)" %
                              (name, os.path.basename(pack)), active))
         else:  # deck
+            if self.deck:
+                mode = ("mode: PLAY deck  (L/R = scenes)" if self.deck_mode
+                        else "mode: BUILD  (L/R = effects)")
+                rows.append(("deckmode", None, mode, self.deck_mode))
             for i, sc in enumerate(self.deck):
                 label = "%d  %s . %s" % (i + 1, sc["shader"],
                                          str(sc.get("video", ""))[:18])
@@ -1062,8 +1069,11 @@ class Instrument:
                 sets = self.list_sets()
                 if i < len(sets):
                     self.load_set(sets[i][0], sets[i][1])
+            elif kind == "deckmode":
+                self.deck_mode = not self.deck_mode
             elif kind == "deck":
                 self.deck_idx = i
+                self.deck_mode = True    # picking a scene = play it
                 sc = self.deck[i]
                 self._ensure_program(sc["shader"])
                 self._apply_scene_extras(sc)
@@ -1079,6 +1089,7 @@ class Instrument:
             elif kind == "deckclear":
                 self.deck = []
                 self.deck_idx = 0
+                self.deck_mode = False
                 self._save_deck()
         elif ev == "randomize":  # B = back / close
             if self.menu_level == 1:
@@ -1240,7 +1251,7 @@ class Instrument:
         flags = ("  FRZ" if self.frozen else "") + ("  PUNCH" if self.punch else "")
         if self.streamer is not None and not self.streamer.dead:
             flags += {1: "  MIX", 2: "  REC", 3: "  LIVE"}.get(self.output_idx, "")
-        if self.deck:
+        if self.deck and self.deck_mode:
             pos = "D%d/%d" % (self.deck_idx + 1, len(self.deck))
         else:
             pos = "%d/%d" % (self.step_idx + 1, len(self.playlist["steps"]))
@@ -1459,7 +1470,8 @@ def main():
 
     inst = Instrument(plat, args)
     inst.overlay_mode = args.ui
-    if inst.deck:  # boot straight into scene 1 of the deck
+    if inst.deck:  # boot straight into scene 1 of the deck, in play mode
+        inst.deck_mode = True
         inst._ensure_program(inst.deck[0]["shader"])
         inst._apply_scene_extras(inst.deck[0])
     if args.clip:
