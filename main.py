@@ -104,6 +104,8 @@ class DesktopPlatform:
                     out.append("freeze")
                 elif k == pg.K_v:
                     out.append("lfo")
+                elif k == pg.K_m:
+                    out.append("mode_toggle")
             elif e.type == pg.KEYUP:
                 if e.key == pg.K_z:
                     out.append("punch_off")
@@ -964,7 +966,7 @@ class Instrument:
             s["x"][i] = min(1.0, max(0.0, s["x"][i] + delta))
 
     TOAST_EVENTS = ("prev", "next", "up", "down", "left", "right",
-                    "src", "randomize", "freeze", "lfo")
+                    "src", "randomize", "freeze", "lfo", "mode_toggle")
 
     MENU_CATS = [("video", "Video source"), ("audio", "Audio source"),
                  ("output", "Output"), ("sets", "FX deck"),
@@ -1141,6 +1143,13 @@ class Instrument:
             import random
             s = self.cur_step()
             s["x"] = [round(random.random(), 2) for _ in range(3)]
+        elif ev == "mode_toggle":
+            if self.deck:
+                self.deck_mode = not self.deck_mode
+                if self.deck_mode:  # entering play: land on current scene
+                    sc = self.deck[self.deck_idx % len(self.deck)]
+                    self._ensure_program(sc["shader"])
+                    self._apply_scene_extras(sc)
         elif ev == "freeze":
             self.frozen = not self.frozen
         elif ev == "lfo":
@@ -1249,6 +1258,8 @@ class Instrument:
         fmt = "[aud %s]" if self.param_row == 5 else "aud %s"
         parts.append(fmt % self.radio.label)
         flags = ("  FRZ" if self.frozen else "") + ("  PUNCH" if self.punch else "")
+        if self.deck and not self.deck_mode:
+            flags += "  BUILD"
         if self.streamer is not None and not self.streamer.dead:
             flags += {1: "  MIX", 2: "  REC", 3: "  LIVE"}.get(self.output_idx, "")
         if self.deck and self.deck_mode:
@@ -1298,7 +1309,7 @@ class Instrument:
         lines.append("dpad </>: pick control   dpad ^/v: turn it")
         lines.append("A hold: punch   B: dice   Y: freeze   X: LFO")
         lines.append("L/R: prev/next effect    Start: video/audio loader")
-        lines.append("Select: hide UI          Sel+Start: quit")
+        lines.append("Select: hide UI   Sel+L/R: build<->play   Sel+Start: quit")
         key = tuple(lines)
         if key != self._help_key:
             self._help_key = key
@@ -1450,6 +1461,8 @@ def main():
                     help="'live' = RTMP via stream.json, or a file path to record")
     ap.add_argument("--loader", action="store_true",
                     help="start with the loader menu open (testing)")
+    ap.add_argument("--deckmode", choices=["build", "play"], default=None,
+                    help="force deck mode at boot")
     args = ap.parse_args()
 
     if args.rom:
@@ -1462,6 +1475,8 @@ def main():
             args.stream = rom_stream if isinstance(rom_stream, str) else "live"
         if rom.get("loader"):
             args.loader = True
+        if rom.get("deck") in ("build", "play"):
+            args.deckmode = rom["deck"]
 
     if IS_PI:
         plat = PiPlatform()
@@ -1470,7 +1485,8 @@ def main():
 
     inst = Instrument(plat, args)
     inst.overlay_mode = args.ui
-    if inst.deck:  # boot straight into scene 1 of the deck, in play mode
+    if inst.deck and args.deckmode != "build":
+        # boot straight into scene 1 of the deck, in play mode
         inst.deck_mode = True
         inst._ensure_program(inst.deck[0]["shader"])
         inst._apply_scene_extras(inst.deck[0])

@@ -320,6 +320,7 @@ class PiInput:
         self.held = {}          # code -> True for buttons
         self.axis = {"x": 0, "y": 0}
         self._absinfo = {}
+        self._select_used = False  # Select acted as shift this hold
         self._next_repeat = 0.0  # typematic: first repeat waits, then ticks
         self._last_scan = time.time()
 
@@ -375,15 +376,27 @@ class PiInput:
                         self.held[e.code] = bool(e.value)
                         if e.code == ec.BTN_SOUTH:
                             events.append("punch_on" if e.value else "punch_off")
+                        elif e.code == ec.BTN_SELECT:
+                            # Select is a shift key: fires "ui" only on a
+                            # clean release with no combo used
+                            if e.value == 0:
+                                if not self._select_used:
+                                    events.append("ui")
+                                self._select_used = False
                         elif e.value == 1:  # press
-                            if e.code == ec.BTN_TL:
-                                events.append("prev")
-                            elif e.code == ec.BTN_TR:
-                                events.append("next")
-                            elif e.code == ec.BTN_SELECT:
-                                events.append("ui")
+                            sel = self.held.get(ec.BTN_SELECT)
+                            if e.code == ec.BTN_TL or e.code == ec.BTN_TR:
+                                if sel:
+                                    events.append("mode_toggle")
+                                    self._select_used = True
+                                else:
+                                    events.append("prev" if e.code == ec.BTN_TL
+                                                  else "next")
                             elif e.code == ec.BTN_START:
-                                events.append("src")
+                                if sel:
+                                    self._select_used = True  # quit combo
+                                else:
+                                    events.append("src")
                             elif e.code == ec.BTN_EAST:
                                 events.append("randomize")
                             elif e.code == ec.BTN_WEST:
