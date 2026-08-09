@@ -824,6 +824,8 @@ class Instrument:
         self._frame_no = 0
         self.menu_open = False
         self.menu_idx = 0
+        self.menu_level = 0
+        self.menu_cat = 0
         self.menu_h = 330
         self.menu_tex = make_texture(self.w, self.menu_h)
         self._menu_key = None
@@ -962,44 +964,68 @@ class Instrument:
     TOAST_EVENTS = ("prev", "next", "up", "down", "left", "right",
                     "src", "randomize", "freeze", "lfo")
 
-    def _menu_entries(self):
-        rows = [("hdr", None, "VIDEO", False)]
-        for i, (kind, path) in enumerate(self.sources.slots):
-            if kind == "clip":
-                label = os.path.splitext(os.path.basename(path))[0][:40]
-            else:
-                label = {"gen": "plasma (generated)", "cam": "camera"}[kind]
-            rows.append(("src", i, label, i == self.sources.slot_idx))
-        rows.append(("hdr", None, "AUDIO", False))
-        labels = {"off": "no audio", "clip": "video's own sound",
-                  "NTS1": "NTS 1 radio", "NTS2": "NTS 2 radio"}
-        for i, (name, _) in enumerate(RADIO_STATIONS):
-            rows.append(("aud", i, labels.get(name, name),
-                         i == self.radio.station_idx))
-        rows.append(("hdr", None, "OUTPUT", False))
-        outs = ["screen only", "to mixer (laptop)", "record to SD",
-                "go live (YouTube)" +
-                ("" if self.stream_cfg["live"] else "  [no key]")]
-        for i, label in enumerate(outs):
-            rows.append(("out", i, label, i == self.output_idx))
-        rows.append(("hdr", None, "FX DECKS  (effect setlists)", False))
-        for i, (pack, name) in enumerate(self.list_sets()):
-            active = (pack == self.pack_rel and name == self.playlist_name
-                      and not self.deck)
-            label = "%s  (%s)" % (name, os.path.basename(pack))
-            rows.append(("set", i, label, active))
-        rows.append(("hdr", None, "DECK  (L/R scrolls scenes)", False))
-        for i, sc in enumerate(self.deck):
-            label = "%d  %s . %s" % (i + 1, sc["shader"],
-                                     str(sc.get("video", ""))[:18])
-            rows.append(("deck", i, label, self.deck and i == self.deck_idx))
-        rows.append(("deckadd", None, "+ save current scene to deck", False))
-        if self.deck:
-            rows.append(("deckclear", None, "x clear deck", False))
+    MENU_CATS = [("video", "Video source"), ("audio", "Audio source"),
+                 ("output", "Output"), ("sets", "FX deck"),
+                 ("deck", "My deck")]
+
+    def _cat_current(self, key):
+        if key == "video":
+            return self.sources.label
+        if key == "audio":
+            return self.radio.label
+        if key == "output":
+            return ["screen", "mixer", "recording", "LIVE"][self.output_idx]
+        if key == "sets":
+            return "deck mode" if self.deck else self.playlist_name
+        return "%d scenes" % len(self.deck)
+
+    def _menu_rows(self):
+        if self.menu_level == 0:
+            return [("cat", i, "%-13s:  %s" % (label, self._cat_current(key)),
+                     False) for i, (key, label) in enumerate(self.MENU_CATS)]
+        key = self.MENU_CATS[self.menu_cat][0]
+        rows = []
+        if key == "video":
+            for i, (kind, path) in enumerate(self.sources.slots):
+                if kind == "clip":
+                    label = os.path.splitext(os.path.basename(path))[0][:40]
+                else:
+                    label = {"gen": "plasma (generated)",
+                             "cam": "camera"}[kind]
+                rows.append(("src", i, label, i == self.sources.slot_idx))
+        elif key == "audio":
+            labels = {"off": "no audio", "clip": "video's own sound",
+                      "NTS1": "NTS 1 radio", "NTS2": "NTS 2 radio"}
+            for i, (name, _) in enumerate(RADIO_STATIONS):
+                rows.append(("aud", i, labels.get(name, name),
+                             i == self.radio.station_idx))
+        elif key == "output":
+            outs = ["screen only", "to mixer (laptop)", "record to SD",
+                    "go live (YouTube)" +
+                    ("" if self.stream_cfg["live"] else "  [no key]")]
+            for i, label in enumerate(outs):
+                rows.append(("out", i, label, i == self.output_idx))
+        elif key == "sets":
+            for i, (pack, name) in enumerate(self.list_sets()):
+                active = (pack == self.pack_rel and name == self.playlist_name
+                          and not self.deck)
+                rows.append(("set", i, "%s  (%s)" %
+                             (name, os.path.basename(pack)), active))
+        else:  # deck
+            for i, sc in enumerate(self.deck):
+                label = "%d  %s . %s" % (i + 1, sc["shader"],
+                                         str(sc.get("video", ""))[:18])
+                rows.append(("deck", i, label,
+                             bool(self.deck) and i == self.deck_idx))
+            rows.append(("deckadd", None, "+ save current scene", False))
+            if self.deck:
+                rows.append(("deckclear", None, "x clear deck", False))
         return rows
 
     def _menu_move(self, delta):
-        rows = self._menu_entries()
+        rows = self._menu_rows()
+        if not rows:
+            return
         i = self.menu_idx
         for _ in range(len(rows)):
             i = (i + delta) % len(rows)
@@ -1012,10 +1038,19 @@ class Instrument:
             self._menu_move(-1)
         elif ev == "down":
             self._menu_move(+1)
-        elif ev == "punch_on":  # A = apply selection, menu stays open
-            rows = self._menu_entries()
+        elif ev == "punch_on":  # A = enter category / apply item
+            rows = self._menu_rows()
+            if not rows:
+                return True
+            self.menu_idx = min(self.menu_idx, len(rows) - 1)
             kind, i = rows[self.menu_idx][0], rows[self.menu_idx][1]
-            if kind == "src":
+            if kind == "cat":
+                self.menu_level = 1
+                self.menu_cat = i
+                sub = self._menu_rows()
+                self.menu_idx = next(
+                    (j for j, r in enumerate(sub) if r[3]), 0)
+            elif kind == "src":
                 self.sources.slot_idx = i
                 self.sources._post_switch()
             elif kind == "aud":
@@ -1045,7 +1080,13 @@ class Instrument:
                 self.deck = []
                 self.deck_idx = 0
                 self._save_deck()
-        elif ev in ("randomize", "src"):  # B or Start = close
+        elif ev == "randomize":  # B = back / close
+            if self.menu_level == 1:
+                self.menu_level = 0
+                self.menu_idx = self.menu_cat
+            else:
+                self.menu_open = False
+        elif ev == "src":  # Start = close
             self.menu_open = False
         return True
 
@@ -1055,11 +1096,9 @@ class Instrument:
         if ev == "src":  # Start = open/close the loader
             self.menu_open = not self.menu_open
             if self.menu_open:
-                rows = self._menu_entries()
-                for i, r in enumerate(rows):
-                    if r[0] == "src" and r[3]:
-                        self.menu_idx = i
-                        break
+                self.menu_level = 0
+                self.menu_cat = 0
+                self.menu_idx = 0
             return True
         if self.menu_open:
             return self._menu_handle(ev)
@@ -1214,18 +1253,20 @@ class Instrument:
             upload_raw(self.overlay_tex, self.w, self.strip_h, raw)
 
     def update_menu(self):
-        rows = self._menu_entries()
+        rows = self._menu_rows()
+        self.menu_idx = min(self.menu_idx, max(0, len(rows) - 1))
         max_rows = 18
         top = max(0, min(self.menu_idx - max_rows // 2, len(rows) - max_rows))
-        lines = ["LOADER   A: apply    Start/B: close"]
+        if self.menu_level == 0:
+            lines = ["LOADER   A: open   Start: close"]
+        else:
+            lines = ["%s   A: apply   B: back   Start: close"
+                     % self.MENU_CATS[self.menu_cat][1].upper()]
         for i, (kind, _, label, active) in enumerate(rows[top:top + max_rows]):
             ri = top + i
-            if kind == "hdr":
-                lines.append("--- %s ---" % label)
-            else:
-                cur = ">" if ri == self.menu_idx else " "
-                on = "*" if active else " "
-                lines.append("%s %s %s" % (cur, on, label))
+            cur = ">" if ri == self.menu_idx else " "
+            on = "*" if active else " "
+            lines.append("%s %s %s" % (cur, on, label))
         key = tuple(lines)
         if key != self._menu_key:
             self._menu_key = key
