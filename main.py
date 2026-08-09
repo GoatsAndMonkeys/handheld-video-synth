@@ -880,19 +880,6 @@ class Instrument:
             print("shader %s failed: %s" % (name, exc))
             return False
 
-    def _apply_scene_extras(self, sc):
-        video = sc.get("video")
-        if video:
-            for i, (kind, path) in enumerate(self.sources.slots):
-                if (kind == "clip" and path and
-                        os.path.basename(path) == video) or kind == video:
-                    self.sources.slot_idx = i
-                    self.sources._post_switch()
-                    break
-        if "aud" in sc:
-            self.radio.station_idx = sc["aud"] % len(RADIO_STATIONS)
-            self.radio.retune(self.current_clip_path())
-
     def list_sets(self):
         import glob
         out = []
@@ -946,9 +933,7 @@ class Instrument:
     def step(self, delta):
         if self.deck and self.deck_mode:
             self.deck_idx = (self.deck_idx + delta) % len(self.deck)
-            sc = self.deck[self.deck_idx]
-            self._ensure_program(sc["shader"])
-            self._apply_scene_extras(sc)
+            self._ensure_program(self.deck[self.deck_idx]["shader"])
         else:
             self.step_idx = (self.step_idx + delta) % len(self.playlist["steps"])
 
@@ -1022,8 +1007,10 @@ class Instrument:
                         else "mode: BUILD  (L/R = effects)")
                 rows.append(("deckmode", None, mode, self.deck_mode))
             for i, sc in enumerate(self.deck):
-                label = "%d  %s . %s" % (i + 1, sc["shader"],
-                                         str(sc.get("video", ""))[:18])
+                lfo = "~" if any(sc.get("lfo", [])) else ""
+                label = "%d  %s%s  [%.2f %.2f %.2f]" % (
+                    i + 1, sc["shader"], lfo,
+                    sc["x"][0], sc["x"][1], sc["x"][2])
                 rows.append(("deck", i, label,
                              bool(self.deck) and i == self.deck_idx))
             rows.append(("deckadd", None, "+ save current scene", False))
@@ -1076,15 +1063,12 @@ class Instrument:
             elif kind == "deck":
                 self.deck_idx = i
                 self.deck_mode = True    # picking a scene = play it
-                sc = self.deck[i]
-                self._ensure_program(sc["shader"])
-                self._apply_scene_extras(sc)
+                self._ensure_program(self.deck[i]["shader"])
             elif kind == "deckadd":
                 import copy
                 sc = copy.deepcopy(self.cur_step())
-                skind, spath = self.sources.slots[self.sources.slot_idx]
-                sc["video"] = os.path.basename(spath) if skind == "clip" else skind
-                sc["aud"] = self.radio.station_idx
+                sc.pop("video", None)    # scenes are effects only —
+                sc.pop("aud", None)      # video/audio stay live choices
                 self.deck.append(sc)
                 self.deck_idx = len(self.deck) - 1
                 self._save_deck()
@@ -1147,9 +1131,8 @@ class Instrument:
             if self.deck:
                 self.deck_mode = not self.deck_mode
                 if self.deck_mode:  # entering play: land on current scene
-                    sc = self.deck[self.deck_idx % len(self.deck)]
-                    self._ensure_program(sc["shader"])
-                    self._apply_scene_extras(sc)
+                    self._ensure_program(
+                        self.deck[self.deck_idx % len(self.deck)]["shader"])
         elif ev == "freeze":
             self.frozen = not self.frozen
         elif ev == "lfo":
@@ -1489,7 +1472,6 @@ def main():
         # boot straight into scene 1 of the deck, in play mode
         inst.deck_mode = True
         inst._ensure_program(inst.deck[0]["shader"])
-        inst._apply_scene_extras(inst.deck[0])
     if args.clip:
         for i, (k, p) in enumerate(inst.sources.slots):
             if k == "clip" and args.clip in os.path.basename(p):
