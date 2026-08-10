@@ -18,24 +18,108 @@ GPL-3.0 · shaders speak the [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_
 
 ## Quick start
 
-Desktop (needs python3, ffmpeg):
+There are two ways to run it. **Desktop** (macOS/Linux) is the fastest way
+to try the effects and build sets. **Handheld** is the real thing: a GPi
+Case 2W running RetroPie, with the synth installed as a game shelf.
 
-```sh
-python3 -m venv .venv
-.venv/bin/pip install pygame PyOpenGL opencv-python numpy yt-dlp
-.venv/bin/python main.py
-```
+### Desktop, from zero
 
-RetroPie / GPi Case — from your computer, with the Pi on the network:
+1. **Prerequisites** — Python 3 and ffmpeg. On macOS:
 
-```sh
-rsync -az --exclude .venv --exclude .git ./ pi@retropie.local:/home/pi/handheld-video-synth/
-ssh pi@retropie.local 'bash /home/pi/handheld-video-synth/pi/install.sh'
-```
+   ```sh
+   brew install python ffmpeg
+   ```
 
-Reboot the Pi: a **Handheld Video Synth** shelf appears in EmulationStation with carts.
-To press a complete SD card image ("cart") for distribution, see
-[docs/SD_CARD_GUIDE.md](docs/SD_CARD_GUIDE.md).
+   (Linux: `sudo apt install python3 python3-venv ffmpeg` or your distro's
+   equivalent. Windows isn't supported natively — use WSL.)
+
+2. **Get the code:**
+
+   ```sh
+   git clone https://github.com/GoatsAndMonkeys/handheld-video-synth
+   cd handheld-video-synth
+   ```
+
+3. **Install the Python dependencies** into a virtual environment (keeps
+   them out of your system Python):
+
+   ```sh
+   python3 -m venv .venv
+   .venv/bin/pip install pygame PyOpenGL opencv-python numpy yt-dlp
+   ```
+
+4. **Run it:**
+
+   ```sh
+   .venv/bin/python main.py
+   ```
+
+   A window opens showing generated plasma with the control bar along the
+   bottom — the synth works out of the box with no video files. Press
+   **F1** to cycle the overlay to the help panel; every key is listed
+   there (arrows select/turn params, `Z` punch, `X` dice, `Tab` opens the
+   Loader menu, `Esc` quits).
+
+5. **Add real videos** (optional but the whole point) — pull a YouTube
+   playlist; it becomes a browsable collection in the Loader:
+
+   ```sh
+   .venv/bin/python ytget.py "https://youtube.com/playlist?list=YOUR_PLAYLIST"
+   ```
+
+   Then run the synth again, press `Tab` → *Video source* → your playlist.
+
+### Handheld (GPi Case 2W), from zero
+
+You need: a Retroflag **GPi Case 2W**, a **Pi Zero 2 W**, a 16 GB+ microSD
+card, 2.4 GHz WiFi, and a computer with `ssh`/`rsync` (macOS/Linux/WSL).
+
+1. **Set up the Pi itself** — flash **RetroPie 4.8** to the SD card,
+   enable WiFi + SSH before first boot, and install Retroflag's screen
+   driver. This is the longest part and it's covered click-by-click in
+   **[docs/SD_CARD_GUIDE.md](docs/SD_CARD_GUIDE.md)** (steps 0–3). If you
+   already have a GPi running RetroPie on WiFi, skip ahead.
+   *Shortcut:* if a prebuilt image exists on the
+   [Releases page](https://github.com/GoatsAndMonkeys/handheld-video-synth/releases),
+   flash that instead (guide, Option A) and jump to step 4.
+
+2. **Copy the synth to the Pi and install it** — from your computer,
+   inside the cloned repo (step 2 above):
+
+   ```sh
+   rsync -az --exclude .venv --exclude .git ./ pi@retropie.local:/home/pi/handheld-video-synth/
+   ssh pi@retropie.local 'bash /home/pi/handheld-video-synth/pi/install.sh'
+   ```
+
+   (Default SSH password is `raspberry`. If `retropie.local` doesn't
+   resolve, use the Pi's IP address from your router.) The installer
+   fetches everything else the Pi needs — Python packages, a working
+   ffmpeg — and registers the synth in EmulationStation.
+
+3. **Reboot the Pi:**
+
+   ```sh
+   ssh pi@retropie.local 'sudo reboot'
+   ```
+
+   A **Handheld Video Synth** shelf appears in EmulationStation with
+   starter carts: *Video Synth Demo*, *Effects Lab*, deck builders, and
+   the streaming outputs.
+
+4. **Load your videos** — from your computer, `--push` sends them over
+   WiFi to the handheld:
+
+   ```sh
+   .venv/bin/python ytget.py "https://youtube.com/playlist?list=YOUR_PLAYLIST" --push
+   ```
+
+5. **Play** — open *Video Synth Demo*, press **Start** → *Video source* →
+   your playlist. Press **Select** once for the on-screen help panel;
+   the full control map is below.
+
+To press your finished setup into a single SD card image others can
+flash ("carts"), see [docs/SD_CARD_GUIDE.md](docs/SD_CARD_GUIDE.md)
+steps 7–9.
 
 ## Architecture
 
