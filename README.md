@@ -191,7 +191,7 @@ The control bar reads left-to-right: `[mix] zoom drift spd src aud`.
 | Start | the Loader menu (below) |
 | Select (tap) | overlay: bar → help panel → hidden |
 | **Select + A** | stack current effect as a layer (chain up to 3) |
-| **Select + B** | clear layers |
+| **Select + B** | remove the focused layer (repeat to clear) |
 | **Select + ↑/↓** | pick which layer you're editing (multi-row bar) |
 | **Select + L/R** | deck BUILD ↔ PLAY mode |
 | **Select + Start** | quit to EmulationStation |
@@ -206,7 +206,7 @@ A/S shoulders, Tab loader, M build/play, L stack, Backspace clear layers,
 Video source :  <playlist collections → videos, camera, plasma>
 Audio source :  no audio / video's own sound / NTS 1 / NTS 2
 Output       :  screen only / to mixer (laptop) / record to SD / go live
-FX deck      :  effect setlists from every pack (live-switchable)
+FX deck      :  effect setlists from every pack + "* everything"
 My decks     :  named decks — build, name, reorder, copy scenes
 ```
 

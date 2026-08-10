@@ -520,15 +520,21 @@ class Streamer:
         # joiners on a UDP stream can never sync — the mixer path uses
         # software x264 (measured 2x realtime on the Zero 2W). rtmp and
         # file recording keep the free hw encoder.
-        if IS_PI and dest.startswith(("udp:", "srt:")):
+        udp = dest.startswith(("udp:", "srt:"))
+        if IS_PI and udp:
             vcodec = ["-c:v", "libx264", "-preset", "ultrafast",
                       "-tune", "zerolatency"]
         elif IS_PI:
             vcodec = ["-c:v", "h264_v4l2m2m"]
         else:
             vcodec = ["-c:v", "libx264", "-preset", "veryfast"]
+        # mixer rides the LAN: quality-targeted, capped at 6mbit.
+        # rtmp/file keep a fixed budget.
+        quality = (["-crf", "16", "-maxrate", "8000k", "-bufsize", "4000k"]
+                   if udp and "libx264" in vcodec else ["-b:v", "1200k"])
         cmd += (["-map", "0:v", "-map", "1:a", "-vf", "vflip"] + vcodec +
-                ["-b:v", "1200k", "-g", str(fps * 2), "-pix_fmt", "yuv420p",
+                quality +
+                ["-g", str(fps * 2), "-pix_fmt", "yuv420p",
                  "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-shortest"])
         if dest.startswith("rtmp"):
             cmd += ["-f", "flv", dest]
@@ -953,9 +959,17 @@ class Instrument:
         self.meta = {}  # shader sidecar metadata, loaded lazily per shader
 
     def load_playlist(self, name):
-        path = os.path.join(self.pack_dir, "playlists", name + ".json")
-        with open(path) as f:
-            pl = json.load(f)
+        if name == self.ALL_SET:     # browse every shader in the pack
+            import glob
+            frs = sorted(glob.glob(os.path.join(self.pack_dir, "shaders",
+                                                "*.frag")))
+            pl = {"steps": [
+                {"shader": os.path.splitext(os.path.basename(f))[0]}
+                for f in frs if not os.path.basename(f).startswith("_")]}
+        else:
+            path = os.path.join(self.pack_dir, "playlists", name + ".json")
+            with open(path) as f:
+                pl = json.load(f)
         for step in pl["steps"]:
             step.setdefault("x", [0.5, 0.5, 0.5])
             step.setdefault("speed", 0.5)
@@ -995,14 +1009,18 @@ class Instrument:
             print("shader %s failed: %s" % (name, exc))
             return False
 
+    ALL_SET = "* everything"     # synthetic set: every shader in the pack
+
     def list_sets(self):
         import glob
         out = []
         for pdir in sorted(glob.glob(os.path.join(ROOT, "packs", "*"))):
+            rel = os.path.relpath(pdir, ROOT)
+            out.append((rel, self.ALL_SET))
             for pj in sorted(glob.glob(os.path.join(pdir, "playlists", "*.json"))):
                 name = os.path.splitext(os.path.basename(pj))[0]
-                if name != "deck":
-                    out.append((os.path.relpath(pdir, ROOT), name))
+                if name not in ("deck", "decks"):
+                    out.append((rel, name))
         return out
 
     def load_set(self, pack_rel, name):
@@ -1435,8 +1453,15 @@ class Instrument:
                 if len(self.layers) > 2:      # cap chain at 3 total
                     self.layers.pop(0)
                 self.layer_focus = 0
-        elif ev == "layer_clear":
-            self.layers = []
+        elif ev == "layer_clear":   # Sel+B: remove the focused layer
+            if self.layers:
+                focused = self.edit_step()
+                for i, l in enumerate(self.layers):
+                    if l is focused:
+                        del self.layers[i]
+                        break
+                else:               # focus was the live effect: peel newest
+                    self.layers.pop()
             self.layer_focus = 0
         elif ev == "layer_focus_up":     # up = toward the top layer,
             self.layer_focus = max(0, self.layer_focus - 1)
@@ -1700,7 +1725,7 @@ class Instrument:
         lines.append("A hold: punch  B: dice  Y: freeze video+time  X: LFO")
         lines.append("hold X + ^v: LFO band all/low/mid/high (~ ~L ~M ~H)")
         lines.append("L/R: prev/next effect    Start: video/audio loader")
-        lines.append("Sel+A: stack layer   Sel+B: clear layers")
+        lines.append("Sel+A: stack layer   Sel+B: remove focused layer")
         lines.append("Select: hide UI   Sel+L/R: build<->play   Sel+Start: quit")
         key = tuple(lines)
         if key != self._help_key:
