@@ -111,7 +111,7 @@ Zero 2 W; the project is moving to the CM4, see the note above.)
    ```
 
    An **HVS-80** shelf appears in EmulationStation with
-   starter carts: *Video Synth Demo*, *Effects Lab*, deck builders, and
+   starter carts: *HVS-80 Demo*, *Effects Lab*, deck builders, and
    the streaming outputs.
 
 4. **Load your videos** — from your computer, `--push` sends them over
@@ -121,7 +121,7 @@ Zero 2 W; the project is moving to the CM4, see the note above.)
    .venv/bin/python ytget.py "https://youtube.com/playlist?list=YOUR_PLAYLIST" --push
    ```
 
-5. **Play** — open *Video Synth Demo*, press **Start** → *Video source* →
+5. **Play** — open *HVS-80 Demo*, press **Start** → *Video source* →
    your playlist. Press **Select** once for the on-screen help panel;
    the full control map is below.
 
