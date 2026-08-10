@@ -1,7 +1,7 @@
 #!/bin/bash
-# VideoBoy launcher — called by EmulationStation with the .vsb ROM path.
+# Handheld Video Synth launcher — called by EmulationStation with the .vsb ROM path.
 # Clears any stale instance/decoders first so sessions can never stack.
-pkill -f "VideoBoy/main.py" 2>/dev/null
+pkill -f "handheld-video-synth/main.py" 2>/dev/null
 pkill -x ffmpeg 2>/dev/null
-cd /home/pi/VideoBoy
-exec python3 main.py --rom "$1" >> /tmp/videoboy.log 2>&1
+cd /home/pi/handheld-video-synth
+exec python3 main.py --rom "$1" >> /tmp/videosynth.log 2>&1

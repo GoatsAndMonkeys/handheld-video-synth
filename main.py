@@ -1596,7 +1596,7 @@ def parse_size(s):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="video synth boy / VideoBoy")
+    ap = argparse.ArgumentParser(description="video synth boy / Handheld Video Synth")
     ap.add_argument("--pack", default="packs/demo")
     ap.add_argument("--playlist", default="set1")
     ap.add_argument("--rom", default=None,

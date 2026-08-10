@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pull YouTube videos (single or playlist) into a VideoBoy pack.
+"""Pull YouTube videos (single or playlist) into a Handheld Video Synth pack.
 
 Usage:
     .venv/bin/python ytget.py <url> [--name clipname] [--pack packs/demo]
@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-PI_DEST = "pi@retropie.local:/home/pi/VideoBoy/%s/clips/"
+PI_DEST = "pi@retropie.local:/home/pi/handheld-video-synth/%s/clips/"
 YT_EXTRA = []
 
 

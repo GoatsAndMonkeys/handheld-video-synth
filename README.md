@@ -25,8 +25,8 @@ python3 -m venv .venv
 RetroPie / GPi Case — from your computer, with the Pi on the network:
 
 ```sh
-rsync -az --exclude .venv --exclude .git ./ pi@retropie.local:/home/pi/VideoBoy/
-ssh pi@retropie.local 'bash /home/pi/VideoBoy/pi/install_videoboy.sh'
+rsync -az --exclude .venv --exclude .git ./ pi@retropie.local:/home/pi/handheld-video-synth/
+ssh pi@retropie.local 'bash /home/pi/handheld-video-synth/pi/install.sh'
 ```
 
 Reboot the Pi: a **Handheld Video Synth** shelf appears in EmulationStation with carts.
@@ -197,4 +197,6 @@ verbatim), and the [scanlines.xyz](https://scanlines.xyz) community.
 
 ## License
 
-GPL-3.0. Downloaded video content is yours and stays out of this repo.
+GPL-3.0. Full attribution and license-compatibility audit in
+[CREDITS.md](CREDITS.md). Downloaded video content is yours and stays out
+of this repo.

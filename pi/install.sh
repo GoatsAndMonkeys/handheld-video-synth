@@ -4,8 +4,8 @@
 # system, the launcher, and the starter carts.
 set -e
 
-APP=/home/pi/VideoBoy
-ROMS=/home/pi/RetroPie/roms/videoboy
+APP=/home/pi/handheld-video-synth
+ROMS=/home/pi/RetroPie/roms/videosynth
 ES_CFG=/etc/emulationstation/es_systems.cfg
 
 echo "== python deps =="
@@ -37,21 +37,21 @@ chmod +x "$APP/launch.sh" "$APP/pi/launch.sh"
 cp -n "$APP"/pi/roms/*.vsb "$ROMS/" 2>/dev/null || true
 
 echo "== EmulationStation system =="
-if grep -q "<name>videoboy</name>" "$ES_CFG"; then
-    echo "videoboy system already registered"
+if grep -q "<name>videosynth</name>" "$ES_CFG"; then
+    echo "videosynth system already registered"
 else
-    sudo cp "$ES_CFG" "$ES_CFG.bak-videoboy"
+    sudo cp "$ES_CFG" "$ES_CFG.bak-videosynth"
     sudo python3 - "$ES_CFG" <<'EOF'
 import sys
 path = sys.argv[1]
 entry = """  <system>
-    <name>videoboy</name>
+    <name>videosynth</name>
     <fullname>Handheld Video Synth</fullname>
-    <path>/home/pi/RetroPie/roms/videoboy</path>
+    <path>/home/pi/RetroPie/roms/videosynth</path>
     <extension>.vsb .VSB</extension>
-    <command>/home/pi/VideoBoy/launch.sh %ROM%</command>
+    <command>/home/pi/handheld-video-synth/launch.sh %ROM%</command>
     <platform>videoboy</platform>
-    <theme>videoboy</theme>
+    <theme>videosynth</theme>
   </system>
 </systemList>"""
 with open(path) as f:
@@ -59,7 +59,7 @@ with open(path) as f:
 cfg = cfg.replace("</systemList>", entry)
 with open(path, "w") as f:
     f.write(cfg)
-print("Handheld Video Synth system registered (backup at %s.bak-videoboy)" % path)
+print("Handheld Video Synth system registered (backup at %s.bak-videosynth)" % path)
 EOF
 fi
 

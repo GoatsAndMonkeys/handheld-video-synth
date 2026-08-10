@@ -26,8 +26,8 @@ From your computer, in a checkout of this repo:
 
 ```sh
 rsync -az --exclude .venv --exclude .git --exclude shots \
-      ./ pi@retropie.local:/home/pi/VideoBoy/
-ssh pi@retropie.local 'bash /home/pi/VideoBoy/pi/install_videoboy.sh'
+      ./ pi@retropie.local:/home/pi/handheld-video-synth/
+ssh pi@retropie.local 'bash /home/pi/handheld-video-synth/pi/install.sh'
 ```
 
 The installer fetches python deps from piwheels (apt on Buster is EOL and
@@ -45,7 +45,7 @@ Each playlist becomes a collection in the Loader. Repeat per playlist.
 Build a deck on the device if you want the cart to boot performance-ready
 (decks live at `packs/demo/playlists/deck.json` on the card).
 
-Optional: streaming endpoints in `/home/pi/VideoBoy/stream.json` —
+Optional: streaming endpoints in `/home/pi/handheld-video-synth/stream.json` —
 remember a YouTube stream key is a **secret**; leave it out of images you
 share.
 
