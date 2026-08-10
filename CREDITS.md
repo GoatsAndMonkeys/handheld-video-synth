@@ -12,11 +12,12 @@ work the project uses, how it is used, and why the licensing is compatible.
 
 ## Techniques reimplemented (no code copied)
 
-[Andrei Jay](https://andreijaycreativecoding.com)'s instruments carry **no
-license** (all rights reserved by default), so none of his code appears in
-this repository. The following shaders are **original implementations,
-written from scratch for this project**, of techniques his published work
-demonstrates — algorithms and ideas are not subject to copyright:
+We could not determine a license for
+[Andrei Jay](https://andreijaycreativecoding.com)'s instrument repositories,
+so none of his code appears in this repository. The following shaders are
+**original implementations, written from scratch for this project**, of
+techniques his published work demonstrates — algorithms and ideas are not
+subject to copyright:
 
 | our shader | technique studied | his project |
 | --- | --- | --- |

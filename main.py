@@ -604,7 +604,7 @@ class _FFClip:
               "crop=%d:%d,vflip" % (w, h, w, h))
         self.proc = subprocess.Popen(
             [ffmpeg, "-loglevel", "quiet", "-skip_loop_filter", "all",
-             "-stream_loop", "-1", "-re", "-i", path,
+             "-re", "-i", path,
              "-f", "rawvideo", "-pix_fmt", "rgb24", "-vf", vf, "pipe:1"],
             stdout=subprocess.PIPE, bufsize=self.frame_size * 4)
         fl = fcntl.fcntl(self.proc.stdout, fcntl.F_GETFL)
@@ -627,6 +627,11 @@ class _FFClip:
         frame = self._buf[(nf - 1) * self.frame_size:nf * self.frame_size]
         self._buf = self._buf[nf * self.frame_size:]
         return frame
+
+    def done(self):
+        """Video ended: decoder exited and no whole frame remains buffered."""
+        return (self.proc.poll() is not None
+                and len(self._buf) < self.frame_size)
 
     def close(self):
         try:
@@ -729,6 +734,18 @@ class Sources:
         self.slot_idx = (self.slot_idx + delta) % len(self.slots)
         self._post_switch()
 
+    def advance(self):
+        """Video finished: play the next one in the same collection."""
+        kind, _ = self.slots[self.slot_idx]
+        if kind != "clip":
+            return
+        for idxs in self.collections().values():
+            if self.slot_idx in idxs:
+                self.slot_idx = idxs[(idxs.index(self.slot_idx) + 1)
+                                     % len(idxs)]
+                break
+        self._post_switch()
+
     def next_clip(self):
         """Jump between clips only — Start button = video cycler."""
         idxs = [i for i, (k, _) in enumerate(self.slots) if k == "clip"]
@@ -758,6 +775,8 @@ class Sources:
             raw = self._ff.read()
             if raw is not None:  # None = no new frame yet; keep the last one
                 upload_raw(self.tex, self.w, self.h, raw)
+            elif self._ff.done():
+                self.advance()   # video over: next in the collection
             return True
         if cv2 is None:
             self.slot_idx = 0
@@ -773,11 +792,9 @@ class Sources:
                     self.slot_idx = 0
                     return False
             ok, frame = self._cap.read()
-            if not ok:  # loop
-                self._cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                ok, frame = self._cap.read()
-                if not ok:
-                    return False
+            if not ok:  # video over: next in the collection
+                self.advance()
+                return True
         else:
             if self._cam is None:
                 self._cam = cv2.VideoCapture(0)
