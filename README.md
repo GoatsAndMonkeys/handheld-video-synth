@@ -248,10 +248,12 @@ Pull videos from YouTube (playlists become collections automatically):
 
 - **to mixer** — MPEG-TS over UDP to a laptop. In OBS: Media Source, input
   `udp://0.0.0.0:5001`, format `mpegts`. ~0.5 s latency over WiFi.
-  - **Discord**: same path — OBS → *Start Virtual Camera* → pick "OBS
-    Virtual Camera" in a voice channel (or Go Live sharing OBS's
-    fullscreen projector). Discord has no direct stream-in URL, so the
-    laptop relays.
+  - **Discord (no OBS)**: run `tools/watch.sh` on the laptop — a plain
+    low-latency window showing the handheld — then Discord → **Go Live**
+    → share that window. (Discord has no stream-in URL, so something on
+    the laptop has to show the video; this is the lightest something.)
+  - **Discord as a camera**: OBS → *Start Virtual Camera* → pick "OBS
+    Virtual Camera" in a voice channel.
 - **record to SD** — mp4s land in the pack's clips and instantly become
   sources: perform, stop, remix your own performance.
 - **go live** — RTMP via the Pi's hardware H.264 encoder. Put your endpoint
