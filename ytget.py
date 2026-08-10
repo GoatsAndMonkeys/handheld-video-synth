@@ -75,10 +75,18 @@ def main():
         entries = subprocess.run(
             [sys.executable, "-m", "yt_dlp", "--flat-playlist"] + YT_EXTRA +
             ["--playlist-items", "1:%d" % args.count,
-             "--print", "%(id)s\t%(title)s", args.url],
+             "--print", "%(id)s\t%(title)s\t%(playlist_title)s", args.url],
             capture_output=True, text=True, check=True).stdout.strip()
-        for line in entries.splitlines():
-            vid, _, title = line.partition("\t")
+        lines = entries.splitlines()
+        # each playlist becomes its own collection subfolder
+        ptitle = lines[0].split("\t")[2] if lines and "\t" in lines[0] else ""
+        col = slug(ptitle)[:24] or "playlist"
+        clips_dir = os.path.join(clips_dir, col)
+        os.makedirs(clips_dir, exist_ok=True)
+        print("collection:", col)
+        for line in lines:
+            parts = line.split("\t")
+            vid, title = parts[0], parts[1] if len(parts) > 1 else parts[0]
             u = "https://www.youtube.com/watch?v=" + vid
             try:
                 outs.append(grab_one(u, slug(title), clips_dir, args.max_seconds))
@@ -88,9 +96,10 @@ def main():
         outs.append(grab_one(args.url, args.name, clips_dir, args.max_seconds))
 
     if args.push and outs:
+        src_root = os.path.join(ROOT, args.pack, "clips")
         dest = PI_DEST % args.pack
-        subprocess.run(["scp", "-q"] + outs + [dest], check=True)
-        print("pushed %d clip(s) to %s" % (len(outs), dest))
+        subprocess.run(["rsync", "-az", src_root + "/", dest], check=True)
+        print("pushed %d clip(s) (collections synced) to %s" % (len(outs), dest))
 
 
 if __name__ == "__main__":

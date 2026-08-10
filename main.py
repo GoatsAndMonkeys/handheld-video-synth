@@ -106,6 +106,10 @@ class DesktopPlatform:
                     out.append("lfo")
                 elif k == pg.K_m:
                     out.append("mode_toggle")
+                elif k == pg.K_l:
+                    out.append("layer_add")
+                elif k == pg.K_BACKSPACE:
+                    out.append("layer_clear")
             elif e.type == pg.KEYUP:
                 if e.key == pg.K_z:
                     out.append("punch_off")
@@ -647,11 +651,25 @@ class Sources:
         slots = [("gen", None)]
         has_cv2 = self._cv2() is not None
         if has_cv2 or self._ffmpeg:
-            for p in sorted(glob.glob(os.path.join(self.clips_dir, "*.mp4"))):
+            clips = (sorted(glob.glob(os.path.join(self.clips_dir, "*.mp4"))) +
+                     sorted(glob.glob(os.path.join(self.clips_dir, "*", "*.mp4"))))
+            for p in clips:
                 slots.append(("clip", p))
         if has_cv2:
             slots.append(("cam", None))
         return slots
+
+    def collections(self):
+        """Ordered {collection_name: [slot indices]} — subfolder per
+        playlist, loose clips under 'misc'."""
+        cols = {}
+        for i, (k, p) in enumerate(self.slots):
+            if k != "clip":
+                continue
+            rel = os.path.relpath(p, self.clips_dir)
+            col = os.path.dirname(rel) or "misc"
+            cols.setdefault(col, []).append(i)
+        return cols
 
     @property
     def mode(self):
@@ -797,6 +815,7 @@ class Instrument:
         self.t = 0.0
         self.punch = False
         self.frozen = False
+        self.layers = []   # locked background effects (Sel+A stacks)
 
         # deck: user-saved full scenes (effect+params+video+audio), L/R
         # walks it when non-empty; persisted per pack
@@ -830,18 +849,20 @@ class Instrument:
         self.menu_idx = 0
         self.menu_level = 0
         self.menu_cat = 0
+        self.menu_col = None
         self.menu_h = 330
         self.menu_tex = make_texture(self.w, self.menu_h)
         self._menu_key = None
         self.prev_tex = make_texture(self.w, self.h, bytes(self.w * self.h * 3))
         self.gen_tex = make_texture(self.w, self.h)
+        self.chain_tex = make_texture(self.w, self.h)  # inter-layer buffer
 
         atlas_raw, aw, ah = plat.glyph_atlas(ASCII_CHARS)
         self.atlas = make_texture(aw, ah, atlas_raw)
         self.bayer = make_bayer_texture()
 
         self.strip_h = 44
-        self.help_h = 158
+        self.help_h = 196
         self.overlay_tex = make_texture(self.w, self.strip_h)
         self.help_tex = make_texture(self.w, self.help_h)
         self.overlay_mode = 0        # 0 compact, 1 help, 2 hidden
@@ -976,13 +997,22 @@ class Instrument:
         key = self.MENU_CATS[self.menu_cat][0]
         rows = []
         if key == "video":
-            for i, (kind, path) in enumerate(self.sources.slots):
-                if kind == "clip":
-                    label = os.path.splitext(os.path.basename(path))[0][:40]
-                else:
-                    label = {"gen": "plasma (generated)",
-                             "cam": "camera"}[kind]
-                rows.append(("src", i, label, i == self.sources.slot_idx))
+            cols = self.sources.collections()
+            cur = self.sources.slot_idx
+            if self.menu_level == 2 and self.menu_col in cols:
+                for i in cols[self.menu_col]:
+                    label = os.path.splitext(os.path.basename(
+                        self.sources.slots[i][1]))[0][:40]
+                    rows.append(("src", i, label, i == cur))
+                return rows
+            for i, (kind, _) in enumerate(self.sources.slots):
+                if kind == "gen":
+                    rows.append(("src", i, "plasma (generated)", i == cur))
+                elif kind == "cam":
+                    rows.append(("src", i, "camera", i == cur))
+            for name, idxs in cols.items():
+                rows.append(("vcol", name, "%s  (%d videos)" %
+                             (name, len(idxs)), cur in idxs))
         elif key == "audio":
             labels = {"off": "no audio", "clip": "video's own sound",
                       "NTS1": "NTS 1 radio", "NTS2": "NTS 2 radio"}
@@ -1046,6 +1076,12 @@ class Instrument:
                 sub = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(sub) if r[3]), 0)
+            elif kind == "vcol":
+                self.menu_level = 2
+                self.menu_col = i          # i is the collection name here
+                sub = self._menu_rows()
+                self.menu_idx = next(
+                    (j for j, r in enumerate(sub) if r[3]), 0)
             elif kind == "src":
                 self.sources.slot_idx = i
                 self.sources._post_switch()
@@ -1069,6 +1105,8 @@ class Instrument:
                 sc = copy.deepcopy(self.cur_step())
                 sc.pop("video", None)    # scenes are effects only —
                 sc.pop("aud", None)      # video/audio stay live choices
+                if self.layers and not (self.deck and self.deck_mode):
+                    sc["layers"] = copy.deepcopy(self.layers)
                 self.deck.append(sc)
                 self.deck_idx = len(self.deck) - 1
                 self._save_deck()
@@ -1078,7 +1116,13 @@ class Instrument:
                 self.deck_mode = False
                 self._save_deck()
         elif ev == "randomize":  # B = back / close
-            if self.menu_level == 1:
+            if self.menu_level == 2:
+                self.menu_level = 1
+                rows = self._menu_rows()
+                self.menu_idx = next(
+                    (j for j, r in enumerate(rows)
+                     if r[0] == "vcol" and r[1] == self.menu_col), 0)
+            elif self.menu_level == 1:
                 self.menu_level = 0
                 self.menu_idx = self.menu_cat
             else:
@@ -1127,6 +1171,14 @@ class Instrument:
             import random
             s = self.cur_step()
             s["x"] = [round(random.random(), 2) for _ in range(3)]
+        elif ev == "layer_add":
+            import copy
+            if not (self.deck and self.deck_mode):
+                self.layers.append(copy.deepcopy(self.cur_step()))
+                if len(self.layers) > 2:      # cap chain at 3 total
+                    self.layers.pop(0)
+        elif ev == "layer_clear":
+            self.layers = []
         elif ev == "mode_toggle":
             if self.deck:
                 self.deck_mode = not self.deck_mode
@@ -1185,19 +1237,19 @@ class Instrument:
     def draw_fullscreen(self):
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, 3)
 
-    def set_common(self, prog, step):
+    def set_common(self, prog, step, top=True):
         import math
         prog.set1f("u_time", self.t)
         prog.set2f("u_resolution", self.w, self.h)
         bands = (self.radio.bass, self.radio.level, self.radio.high)
         for i in range(3):
             v = step["x"][i]
-            if step["lfo"][i]:
+            if step.get("lfo", [False] * 4)[i]:
                 if self.radio.active:
                     v += 0.55 * bands[i] - 0.1   # follow the music
                 else:
                     v += 0.25 * math.sin(self.t * 2.0 + i * 2.1)
-            if self.punch and self.param_row == i:
+            if top and self.punch and self.param_row == i:
                 v += 0.5
             prog.set1f("u_x%d" % i, min(1.0, max(0.0, v)))
         prog.set1f("u_a0", bands[0])
@@ -1247,9 +1299,12 @@ class Instrument:
             flags += {1: "  MIX", 2: "  REC", 3: "  LIVE"}.get(self.output_idx, "")
         if self.deck and self.deck_mode:
             pos = "D%d/%d" % (self.deck_idx + 1, len(self.deck))
+            nlayers = len(step.get("layers", []))
         else:
             pos = "%d/%d" % (self.step_idx + 1, len(self.playlist["steps"]))
-        line1 = "%s %s  %s%s" % (pos, step["shader"], "  ".join(parts), flags)
+            nlayers = len(self.layers)
+        shader = step["shader"] + ("+%d" % nlayers if nlayers else "")
+        line1 = "%s %s  %s%s" % (pos, shader, "  ".join(parts), flags)
         line2 = "Select: what do these knobs do?"
         key = (line1, line2)
         if key != self._overlay_key:
@@ -1264,6 +1319,9 @@ class Instrument:
         top = max(0, min(self.menu_idx - max_rows // 2, len(rows) - max_rows))
         if self.menu_level == 0:
             lines = ["LOADER   A: open   Start: close"]
+        elif self.menu_level == 2:
+            lines = ["%s   A: play   B: back   Start: close"
+                     % str(self.menu_col).upper()]
         else:
             lines = ["%s   A: apply   B: back   Start: close"
                      % self.MENU_CATS[self.menu_cat][1].upper()]
@@ -1292,6 +1350,7 @@ class Instrument:
         lines.append("dpad </>: pick control   dpad ^/v: turn it")
         lines.append("A hold: punch   B: dice   Y: freeze   X: LFO")
         lines.append("L/R: prev/next effect    Start: video/audio loader")
+        lines.append("Sel+A: stack layer   Sel+B: clear layers")
         lines.append("Select: hide UI   Sel+L/R: build<->play   Sel+Start: quit")
         key = tuple(lines)
         if key != self._help_key:
@@ -1326,16 +1385,27 @@ class Instrument:
             self.sources.update()
             src = self.sources.tex
 
-        prog = self.programs.get(step["shader"])
-        if prog is None:
-            prog = list(self.programs.values())[0]
-        prog.use()
-        self.set_common(prog, step)
-        prog.set_tex("u_tex0", 0, src)
-        prog.set_tex("u_tex1", 1, self.prev_tex)
-        prog.set_tex("u_atlas", 2, self.atlas)
-        prog.set_tex("u_dither", 3, self.bayer)
-        self.draw_fullscreen()
+        if self.deck and self.deck_mode:
+            chain = list(step.get("layers", [])) + [step]
+        else:
+            chain = self.layers + [step]
+        tex_in = src
+        for li, ls in enumerate(chain):
+            prog = self.programs.get(ls["shader"])
+            if prog is None:
+                prog = list(self.programs.values())[0]
+            prog.use()
+            self.set_common(prog, ls, top=(li == len(chain) - 1))
+            prog.set_tex("u_tex0", 0, tex_in)
+            prog.set_tex("u_tex1", 1, self.prev_tex)
+            prog.set_tex("u_atlas", 2, self.atlas)
+            prog.set_tex("u_dither", 3, self.bayer)
+            self.draw_fullscreen()
+            if li < len(chain) - 1:
+                GL.glBindTexture(GL.GL_TEXTURE_2D, self.chain_tex)
+                GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0,
+                                       self.w, self.h)
+                tex_in = self.chain_tex
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.prev_tex)
         GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.w, self.h)
 

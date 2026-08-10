@@ -375,7 +375,12 @@ class PiInput:
                     if e.type == ec.EV_KEY:
                         self.held[e.code] = bool(e.value)
                         if e.code == ec.BTN_SOUTH:
-                            events.append("punch_on" if e.value else "punch_off")
+                            if e.value == 1 and self.held.get(ec.BTN_SELECT):
+                                events.append("layer_add")
+                                self._select_used = True
+                            else:
+                                events.append("punch_on" if e.value
+                                              else "punch_off")
                         elif e.code == ec.BTN_SELECT:
                             # Select is a shift key: fires "ui" only on a
                             # clean release with no combo used
@@ -398,7 +403,11 @@ class PiInput:
                                 else:
                                     events.append("src")
                             elif e.code == ec.BTN_EAST:
-                                events.append("randomize")
+                                if sel:
+                                    events.append("layer_clear")
+                                    self._select_used = True
+                                else:
+                                    events.append("randomize")
                             elif e.code == ec.BTN_WEST:
                                 events.append("freeze")
                             elif e.code == ec.BTN_NORTH:
