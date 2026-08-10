@@ -1188,12 +1188,18 @@ class Instrument:
                 di = self.menu_col
                 for si, sc in enumerate(self.decks[di]["scenes"]):
                     lfo = "~" if any(sc.get("lfo", [])) else ""
+                    # full chain, top layer first, e.g. "ascii+delay+waaave"
+                    shads = "+".join(
+                        [sc["shader"]] +
+                        [l["shader"] for l in reversed(sc.get("layers", []))])
                     if sc.get("name"):
-                        body = "%s  (%s%s)" % (sc["name"], sc["shader"], lfo)
+                        body = "%s  (%s%s)" % (sc["name"], shads, lfo)
                     else:
                         body = "%s%s  [%.2f %.2f %.2f]" % (
-                            sc["shader"], lfo,
+                            shads, lfo,
                             sc["x"][0], sc["x"][1], sc["x"][2])
+                    if len(body) > 52:
+                        body = body[:49] + "..."
                     rows.append(("deck", (di, si), "%d  %s" % (si + 1, body),
                                  di == self.deck_sel and si == self.deck_idx))
                 rows.append(("deckadd", di, "+ save current scene here",
