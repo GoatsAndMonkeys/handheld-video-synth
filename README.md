@@ -1,7 +1,8 @@
 # Handheld Video Synth
 
 **A pocket computer for video effects.** Handheld Video Synth turns a Retroflag GPi Case
-(Raspberry Pi Zero 2 W) into a handheld video effects console: it plays video
+(currently the Raspberry Pi Zero 2 W — alpha hardware, see note below)
+into a handheld video effects console: it plays video
 (YouTube pulls, camera, generative), melts it through a library of live GLSL
 effects, reacts to music (each clip's own sound or NTS internet radio),
 records itself, and broadcasts — RTMP live streams or UDP straight into a
@@ -12,9 +13,12 @@ you walk through with the shoulder buttons, LSDJ-style. Also runs on desktop
 GPL-3.0 · shaders speak the [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r)
 / glslViewer convention, so community shaders drop in verbatim.
 
-> **Alpha.** This version targets the **Raspberry Pi Zero 2 W** in the GPi
-> Case 2W. A build for the **CM4** (GPi Case 2) is planned — more power for
-> deeper layer stacks, higher framerates, and live capture input.
+> **Alpha hardware note.** This version runs on the **Raspberry Pi
+> Zero 2 W** in the GPi Case 2W, but the project is transitioning to the
+> **CM4** (GPi Case 2) — more power for deeper layer stacks, higher
+> framerates, and live capture input. The Zero 2 W is the *alpha*
+> platform only: **don't buy one for this project unless you already own
+> one** — wait for the CM4 build.
 
 ## Quick start
 
@@ -73,6 +77,8 @@ Case 2W running RetroPie, with the synth installed as a game shelf.
 
 You need: a Retroflag **GPi Case 2W**, a **Pi Zero 2 W**, a 16 GB+ microSD
 card, 2.4 GHz WiFi, and a computer with `ssh`/`rsync` (macOS/Linux/WSL).
+(This is the *alpha* hardware — only build one if you already own the
+Zero 2 W; the project is moving to the CM4, see the note above.)
 
 1. **Set up the Pi itself** — flash **RetroPie 4.8** to the SD card,
    enable WiFi + SSH before first boot, and install Retroflag's screen
@@ -260,7 +266,9 @@ Drop a `.frag` in a pack's `shaders/`, reference it from a playlist, done.
 
 ## Hardware notes
 
-- GPi Case 2W + Pi Zero 2 W: 640×480 DPI screen, legacy Broadcom driver
+- GPi Case 2W + Pi Zero 2 W (**alpha platform** — the CM4 / GPi Case 2 is
+  the transition target; don't buy a Zero 2 W for this if you don't
+  already have one): 640×480 DPI screen, legacy Broadcom driver
   (**do not** enable vc4-kms), controls appear as an Xbox 360 pad, ~20 fps
   single effect / ~15 fps with layers. Only 237 MB RAM reaches Linux —
   the engine is built lean for it (no numpy on the Pi).

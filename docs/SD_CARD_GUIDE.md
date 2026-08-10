@@ -24,6 +24,11 @@ image" at the end).
 ## 0. What you need
 
 **Hardware**
+
+> **Alpha note:** this hardware list is for the current *alpha* build.
+> The project is transitioning to the **CM4** (GPi Case 2) — don't buy a
+> Zero 2 W for this project unless you already own one.
+
 - Retroflag **GPi Case 2W** (with its cartridge shell)
 - Raspberry Pi **Zero 2 W** (the case's cartridge holds the Pi + SD card)
 - microSD card, 16–32 GB, class A1 or better
@@ -175,7 +180,8 @@ Result: `hvs-cart.img.gz`, typically 3–6 GB depending on content.
 Flash `hvs-cart.img.gz` onto any SD card with Raspberry Pi Imager or
 balenaEtcher. First boot expands the filesystem, then lands on the shelf.
 One image → as many carts as you have cards. A spare GPi cartridge shell
-+ a Zero 2 W + a flashed card = a complete, giftable instrument.
++ a Zero 2 W (one you already have — see the alpha note in step 0) + a
+flashed card = a complete, giftable instrument.
 
 ## Releasing an image
 
