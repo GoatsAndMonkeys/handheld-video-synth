@@ -271,10 +271,12 @@ Drop a `.frag` in a pack's `shaders/`, reference it from a playlist, done.
 - GPi Case 2W + Pi Zero 2 W (**alpha platform** — the CM4 / GPi Case 2 is
   the transition target; don't buy a Zero 2 W for this if you don't
   already have one): 640×480 DPI screen, legacy Broadcom driver
-- Video sources decode at 320×240 on the Zero 2W (the GPU upscales; output
-  is still 640×480). Full-res decode (`--fullres`, desktop default) is
-  measured-unviable there — 237 MB RAM exhausts and the device
-  swap-freezes. Full-res sources are a CM4 feature.
+- Video sources decode at 320×240 on the Zero 2W — a deliberate choice,
+  not just a budget one: it's an exact 2× integer scale to the 640×480
+  screen, so pixels stay bit-perfect chunky instead of scaling-blurred.
+  (Full-res decode — `--fullres`, the desktop default — was measured
+  unviable on the Zero 2W: it saturates a CPU core just moving pixels.
+  Full-res sources are a CM4 feature.)
   (**do not** enable vc4-kms), controls appear as an Xbox 360 pad, ~20 fps
   single effect / ~15 fps with layers. Only 237 MB RAM reaches Linux —
   the engine is built lean for it (no numpy on the Pi).
