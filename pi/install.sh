@@ -36,6 +36,17 @@ cp "$APP/pi/launch.sh" "$APP/launch.sh"
 chmod +x "$APP/launch.sh" "$APP/pi/launch.sh"
 cp -n "$APP"/pi/roms/*.vsb "$ROMS/" 2>/dev/null || true
 
+echo "== theme (logo) =="
+THEME_DIR=/etc/emulationstation/themes/carbon-2021
+if [ -d "$THEME_DIR" ]; then
+    sudo mkdir -p "$THEME_DIR/videosynth"
+    sudo cp "$APP/pi/theme/theme.xml" "$APP/pi/theme/logo.png" \
+        "$THEME_DIR/videosynth/"
+    echo "HVS-80 logo installed into carbon-2021"
+else
+    echo "carbon-2021 theme not found — shelf will use text fallback"
+fi
+
 echo "== EmulationStation system =="
 if grep -q "<name>videosynth</name>" "$ES_CFG"; then
     echo "videosynth system already registered"

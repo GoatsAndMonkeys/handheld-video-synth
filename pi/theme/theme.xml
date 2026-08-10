@@ -1,0 +1,20 @@
+<!-- HVS-80 system theme for carbon-2021: inherit the stock layout,
+     swap the (missing) svg logo for our png so ES stops falling back
+     to plain text. Installed by pi/install.sh into
+     themes/carbon-2021/videosynth/ -->
+<theme>
+	<formatVersion>6</formatVersion>
+	<include>./../theme.xml</include>
+
+	<view name="system">
+		<image name="logo">
+			<path>./logo.png</path>
+		</image>
+	</view>
+
+	<view name="basic, detailed, video, grid">
+		<image name="logo">
+			<path>./logo.png</path>
+		</image>
+	</view>
+</theme>
