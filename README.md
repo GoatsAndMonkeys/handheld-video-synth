@@ -55,17 +55,17 @@ RetroPie openFrameworks synths target.
 
 ## Effects
 
-| shader | what it does | origin / homage |
-| --- | --- | --- |
-| `waaave` + 4 banks | feedback zones: mix/lumakey, drift, color life/death, mirrors | fresh implementation of [waaave_pool](https://github.com/ex-zee-ex/waaaave_pool) techniques |
-| `chromab` | brightness-band colorizer / solarizer | CHROMATIC_ABERRATION |
-| `lifeosc` | chaotic video oscillators, video-phase-modulated | artificial_life |
-| `slitscan` | moving scanline freezes time across space | temporal_vortex |
-| `haeckel` | superformula radiolaria with feedback trails | SUPER_HAECKEL_ADVENTURES_64 |
-| `gravity` | orbiting attractor lenses the feedback | gravity_waaaves |
-| `cellular` | numerical-feedback automata seeded by video | integerfeedback / CA lab |
-| `ascii`, `gameboy`, `colorize`, `feedback` | terminal glyphs, 4-shade dither, color, trails | original |
-| `packs/recurboy/*` | 15 shaders, **verbatim** (GPL-3) | official r_e_c_u_r collection |
+| shader | what it does | origin / homage | license |
+| --- | --- | --- | --- |
+| `waaave` + 4 banks | feedback zones: mix/lumakey, drift, color life/death, mirrors | fresh implementation of [waaave_pool](https://github.com/ex-zee-ex/waaaave_pool) techniques | GPL-3.0 (this project; no upstream code — see [CREDITS](CREDITS.md)) |
+| `chromab` | brightness-band colorizer / solarizer | CHROMATIC_ABERRATION | GPL-3.0 (this project) |
+| `lifeosc` | chaotic video oscillators, video-phase-modulated | artificial_life | GPL-3.0 (this project) |
+| `slitscan` | moving scanline freezes time across space | temporal_vortex | GPL-3.0 (this project) |
+| `haeckel` | superformula radiolaria with feedback trails | SUPER_HAECKEL_ADVENTURES_64 | GPL-3.0 (this project) |
+| `gravity` | orbiting attractor lenses the feedback | gravity_waaaves | GPL-3.0 (this project) |
+| `cellular` | numerical-feedback automata seeded by video | integerfeedback / CA lab | GPL-3.0 (this project) |
+| `ascii`, `gameboy`, `colorize`, `feedback` | terminal glyphs, 4-shade dither, color, trails | original | GPL-3.0 (this project) |
+| `packs/recurboy/*` | 15 shaders, **verbatim** | official r_e_c_u_r collection | GPL-3.0 (upstream, © Tim Caldwell & contributors — [pack LICENSE](packs/recurboy/LICENSE)) |
 
 Every effect exposes exactly **3 params + speed** (the recurBOY convention),
 so any effect maps to the same controls, and every param can follow the
