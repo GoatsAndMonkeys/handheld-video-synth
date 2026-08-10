@@ -46,7 +46,7 @@ import sys
 path = sys.argv[1]
 entry = """  <system>
     <name>videosynth</name>
-    <fullname>HVS-80 Pocket Computer</fullname>
+    <fullname>HVS-100</fullname>
     <path>/home/pi/RetroPie/roms/videosynth</path>
     <extension>.vsb .VSB</extension>
     <command>/home/pi/handheld-video-synth/launch.sh %ROM%</command>
@@ -63,4 +63,4 @@ print("HVS-80 system registered (backup at %s.bak-videosynth)" % path)
 EOF
 fi
 
-echo "== done — restart EmulationStation (or reboot) to see the HVS-80 shelf =="
+echo "== done — restart EmulationStation (or reboot) to see the HVS-100 shelf =="

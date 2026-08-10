@@ -110,7 +110,7 @@ Zero 2 W; the project is moving to the CM4, see the note above.)
    ssh pi@retropie.local 'sudo reboot'
    ```
 
-   An **HVS-80** shelf appears in EmulationStation with
+   An **HVS-100** shelf appears in EmulationStation with
    starter carts: *Video Synth Demo*, *Effects Lab*, deck builders, and
    the streaming outputs.
 
