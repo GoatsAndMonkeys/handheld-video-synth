@@ -1454,14 +1454,17 @@ class Instrument:
                     self.layers.pop(0)
                 self.layer_focus = 0
         elif ev == "layer_clear":   # Sel+B: remove the focused layer
-            if self.layers:
+            # in deck play mode the stack belongs to the scene itself
+            lst = (self.cur_step().setdefault("layers", [])
+                   if self.deck and self.deck_mode else self.layers)
+            if lst:
                 focused = self.edit_step()
-                for i, l in enumerate(self.layers):
+                for i, l in enumerate(lst):
                     if l is focused:
-                        del self.layers[i]
+                        del lst[i]
                         break
                 else:               # focus was the live effect: peel newest
-                    self.layers.pop()
+                    lst.pop()
             self.layer_focus = 0
         elif ev == "layer_focus_up":     # up = toward the top layer,
             self.layer_focus = max(0, self.layer_focus - 1)
@@ -1928,8 +1931,9 @@ def main():
 
     inst = Instrument(plat, args)
     inst.overlay_mode = args.ui
-    if inst.deck and args.deckmode != "build":
-        # boot straight into scene 1 of the deck, in play mode
+    if inst.deck and args.deckmode == "play":
+        # only the Setlist cart boots into the deck — the instrument
+        # cart always boots browsing effects (deck reachable via Sel+L/R)
         inst.deck_mode = True
         inst._ensure_program(inst.deck[0]["shader"])
     if args.clip:
