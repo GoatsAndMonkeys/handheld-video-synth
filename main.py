@@ -55,6 +55,8 @@ class DesktopPlatform:
         for i in range(pygame.joystick.get_count()):
             pygame.joystick.Joystick(i).init()
         self.width, self.height = w, h
+        self._v_down = False
+        self._v_used = False
         self._clock = pygame.time.Clock()
         pygame.font.init()
         self._font14 = pygame.font.SysFont("Menlo", 14)
@@ -83,9 +85,17 @@ class DesktopPlatform:
                 elif k == pg.K_s:
                     out.append("next")
                 elif k == pg.K_UP:
-                    out.append("up")
+                    if self._v_down:
+                        out.append("lfoband_up")
+                        self._v_used = True
+                    else:
+                        out.append("up")
                 elif k == pg.K_DOWN:
-                    out.append("down")
+                    if self._v_down:
+                        out.append("lfoband_down")
+                        self._v_used = True
+                    else:
+                        out.append("down")
                 elif k == pg.K_LEFT:
                     out.append("left")
                 elif k == pg.K_RIGHT:
@@ -103,7 +113,8 @@ class DesktopPlatform:
                 elif k == pg.K_c:
                     out.append("freeze")
                 elif k == pg.K_v:
-                    out.append("lfo")
+                    self._v_down = True
+                    self._v_used = False
                 elif k == pg.K_m:
                     out.append("mode_toggle")
                 elif k == pg.K_l:
@@ -113,6 +124,10 @@ class DesktopPlatform:
             elif e.type == pg.KEYUP:
                 if e.key == pg.K_z:
                     out.append("punch_off")
+                elif e.key == pg.K_v:
+                    if not self._v_used:
+                        out.append("lfo")
+                    self._v_down = False
             elif e.type == pg.JOYBUTTONDOWN:
                 if e.button == 4:
                     out.append("prev")
@@ -882,6 +897,9 @@ class Instrument:
             step.setdefault("lfo", [False, False, False])
             while len(step["lfo"]) < 4:      # 4th slot = speed ("auto" mode)
                 step["lfo"].append(False)
+            step.setdefault("lfoband", [0, 1, 2, 1])  # 0=low 1=mid 2=high
+            while len(step["lfoband"]) < 4:
+                step["lfoband"].append(1)
             step["x"] = [float(v) for v in step["x"]]
         return pl
 
@@ -972,7 +990,8 @@ class Instrument:
             s["x"][i] = min(1.0, max(0.0, s["x"][i] + delta))
 
     TOAST_EVENTS = ("prev", "next", "up", "down", "left", "right",
-                    "src", "randomize", "freeze", "lfo", "mode_toggle")
+                    "src", "randomize", "freeze", "lfo", "mode_toggle",
+                    "lfoband_up", "lfoband_down")
 
     MENU_CATS = [("video", "Video source"), ("audio", "Audio source"),
                  ("output", "Output"), ("sets", "FX deck"),
@@ -1191,6 +1210,15 @@ class Instrument:
             if self.param_row < 4:  # any x param or speed ("auto")
                 s = self.cur_step()
                 s["lfo"][self.param_row] = not s["lfo"][self.param_row]
+        elif ev in ("lfoband_up", "lfoband_down"):
+            if self.param_row < 4:
+                s = self.cur_step()
+                lb = s.setdefault("lfoband", [0, 1, 2, 1])
+                while len(lb) < 4:
+                    lb.append(1)
+                delta = 1 if ev == "lfoband_up" else -1
+                lb[self.param_row] = (lb[self.param_row] + delta) % 3
+                s["lfo"][self.param_row] = True  # picking a band arms it
         return True
 
     def current_clip_path(self):
@@ -1242,13 +1270,16 @@ class Instrument:
         prog.set1f("u_time", self.t)
         prog.set2f("u_resolution", self.w, self.h)
         bands = (self.radio.bass, self.radio.level, self.radio.high)
+        lb = step.get("lfoband", [0, 1, 2, 1])
         for i in range(3):
             v = step["x"][i]
             if step.get("lfo", [False] * 4)[i]:
+                b = lb[i] if i < len(lb) else i
                 if self.radio.active:
-                    v += 0.55 * bands[i] - 0.1   # follow the music
+                    v += 0.55 * bands[b] - 0.1   # follow the chosen band
                 else:
-                    v += 0.25 * math.sin(self.t * 2.0 + i * 2.1)
+                    rate = (0.7, 2.0, 4.5)[b]    # low/mid/high sine speeds
+                    v += 0.25 * math.sin(self.t * rate + i * 2.1)
             if top and self.punch and self.param_row == i:
                 v += 0.5
             prog.set1f("u_x%d" % i, min(1.0, max(0.0, v)))
@@ -1281,10 +1312,11 @@ class Instrument:
     def update_overlay(self, step):
         names = self._param_names(step) + ["spd"]
         parts = []
+        lb = step.get("lfoband", [0, 1, 2, 1])
         for i in range(4):
             label = names[i]
             if step["lfo"][i]:
-                label += "~"
+                label += "~" + "LMH"[lb[i] if i < len(lb) else 1]
             val = step["x"][i] if i < 3 else step["speed"]
             fmt = "[%s %.2f]" if self.param_row == i else "%s %.2f"
             parts.append(fmt % (label, val))
@@ -1349,6 +1381,7 @@ class Instrument:
                      % (marker(5), "aud"))
         lines.append("dpad </>: pick control   dpad ^/v: turn it")
         lines.append("A hold: punch   B: dice   Y: freeze   X: LFO")
+        lines.append("hold X + ^v: LFO band low/mid/high (~L ~M ~H)")
         lines.append("L/R: prev/next effect    Start: video/audio loader")
         lines.append("Sel+A: stack layer   Sel+B: clear layers")
         lines.append("Select: hide UI   Sel+L/R: build<->play   Sel+Start: quit")
@@ -1363,10 +1396,12 @@ class Instrument:
         step = self.cur_step()
         spd = step["speed"]
         if step["lfo"][3]:                   # "auto": music drives the clock
+            b = step.get("lfoband", [0, 1, 2, 1])[3]
+            band_v = (self.radio.bass, self.radio.level, self.radio.high)[b]
             if self.radio.active:
-                spd = min(1.0, spd * 0.4 + self.radio.level * 0.9)
+                spd = min(1.0, spd * 0.4 + band_v * 0.9)
             else:
-                spd = min(1.0, spd + 0.25 * math.sin(self.t * 1.3))
+                spd = min(1.0, spd + 0.25 * math.sin(self.t * (0.7, 1.3, 2.6)[b]))
         if not self.frozen:
             self.t += dt * (0.1 + spd * 1.9)
 

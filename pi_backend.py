@@ -321,6 +321,7 @@ class PiInput:
         self.axis = {"x": 0, "y": 0}
         self._absinfo = {}
         self._select_used = False  # Select acted as shift this hold
+        self._north_used = False   # X (LFO) acted as shift this hold
         self._next_repeat = 0.0  # typematic: first repeat waits, then ticks
         self._last_scan = time.time()
 
@@ -388,6 +389,11 @@ class PiInput:
                                 if not self._select_used:
                                     events.append("ui")
                                 self._select_used = False
+                        elif e.code == ec.BTN_NORTH and e.value == 0:
+                            # X is also a shift: clean release = LFO toggle
+                            if not self._north_used:
+                                events.append("lfo")
+                            self._north_used = False
                         elif e.value == 1:  # press
                             sel = self.held.get(ec.BTN_SELECT)
                             if e.code == ec.BTN_TL or e.code == ec.BTN_TR:
@@ -411,16 +417,25 @@ class PiInput:
                             elif e.code == ec.BTN_WEST:
                                 events.append("freeze")
                             elif e.code == ec.BTN_NORTH:
-                                events.append("lfo")
+                                pass  # LFO fires on release (hold = shift)
                     elif e.type == ec.EV_ABS:
                         old = dict(self.axis)
                         if self._axis_state(d, e.code, e.value):
                             fresh = False
+                            north = self.held.get(ec.BTN_NORTH)
                             if self.axis["y"] == -1 and old["y"] != -1:
-                                events.append("up")
+                                if north:
+                                    events.append("lfoband_up")
+                                    self._north_used = True
+                                else:
+                                    events.append("up")
                                 fresh = True
                             elif self.axis["y"] == 1 and old["y"] != 1:
-                                events.append("down")
+                                if north:
+                                    events.append("lfoband_down")
+                                    self._north_used = True
+                                else:
+                                    events.append("down")
                                 fresh = True
                             if self.axis["x"] == -1 and old["x"] != -1:
                                 events.append("left")
@@ -436,7 +451,8 @@ class PiInput:
 
         # auto-repeat held up/down for continuous value sweeps
         now = time.time()
-        if self.axis["y"] != 0 and now >= self._next_repeat:
+        if (self.axis["y"] != 0 and now >= self._next_repeat
+                and not self.held.get(ec.BTN_NORTH)):
             events.append("up" if self.axis["y"] == -1 else "down")
             self._next_repeat = now + self.REPEAT_S
 
