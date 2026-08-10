@@ -12,6 +12,10 @@ you walk through with the shoulder buttons, LSDJ-style. Also runs on desktop
 GPL-3.0 · shaders speak the [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r)
 / glslViewer convention, so community shaders drop in verbatim.
 
+> **Alpha.** This version targets the **Raspberry Pi Zero 2 W** in the GPi
+> Case 2W. A build for the **CM4** (GPi Case 2) is planned — more power for
+> deeper layer stacks, higher framerates, and live capture input.
+
 ## Quick start
 
 Desktop (needs python3, ffmpeg):
