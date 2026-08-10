@@ -1,6 +1,6 @@
-# Pressing a cart: building a complete VFX Deck SD image
+# Pressing a cart: building a complete Handheld Video Synth SD image
 
-The goal: one `.img` file containing RetroPie + VFX Deck + your content,
+The goal: one `.img` file containing RetroPie + Handheld Video Synth + your content,
 flashable to any SD card — a finished cartridge. In the GPi Case the
 cartridge shell holds the Pi and its SD card, so a flashed card *is* the
 cart: build one master image, press as many carts as you like.
@@ -14,13 +14,13 @@ cart: build one master image, press as many carts as you like.
 3. GPi Case screen + safe shutdown: run Retroflag's GPi Case 2W patch
    (from <https://github.com/RetroFlag/GPiCase2W-Script>) per their
    instructions — this sets the DPI display overlay and shutdown GPIO.
-   **Do not** enable the vc4-kms GPU driver; VFX Deck uses the legacy
+   **Do not** enable the vc4-kms GPU driver; Handheld Video Synth uses the legacy
    Broadcom stack the case ships with.
 4. Boot in the case, configure WiFi (RetroPie menu → WIFI) and enable SSH
    (RetroPie menu → raspi-config → Interface Options). Note: the Zero 2 W
    is 2.4 GHz-only.
 
-## 2. Install VFX Deck
+## 2. Install Handheld Video Synth
 
 From your computer, in a checkout of this repo:
 
@@ -31,7 +31,7 @@ ssh pi@retropie.local 'bash /home/pi/VideoBoy/pi/install_videoboy.sh'
 ```
 
 The installer fetches python deps from piwheels (apt on Buster is EOL and
-will not work), downloads a static ffmpeg, registers the **VFX Deck**
+will not work), downloads a static ffmpeg, registers the **Handheld Video Synth**
 system in EmulationStation, and copies the starter carts. Reboot the Pi;
 the shelf appears.
 
@@ -51,7 +51,7 @@ share.
 
 ## 4. Capture the image (macOS)
 
-1. Shut the Pi down cleanly (Select+Start out of VFX Deck, then
+1. Shut the Pi down cleanly (Select+Start out of Handheld Video Synth, then
    EmulationStation → Quit → Shutdown), remove the SD card, insert it in
    your computer.
 2. Find the disk — look for the card by size:
@@ -86,12 +86,12 @@ docker run --privileged --rm -v "$PWD":/workdir \
 
 Flash the (possibly .gz) image with Raspberry Pi Imager or balenaEtcher
 onto each card. First boot auto-expands the filesystem, then boots to the
-VFX Deck shelf. Slot the card (or a whole Zero 2 W + card in a spare GPi
+Handheld Video Synth shelf. Slot the card (or a whole Zero 2 W + card in a spare GPi
 cartridge shell) and hand it to someone.
 
 ## Sharing images publicly
 
-The VFX Deck software is GPL-3.0 — share freely. But an image containing
+The Handheld Video Synth software is GPL-3.0 — share freely. But an image containing
 **downloaded music videos is not yours to distribute**. For public
 releases, capture the image *before* step 3 (content-free), or keep a
 separate content-free master. Same for `stream.json` and saved WiFi

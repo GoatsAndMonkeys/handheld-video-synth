@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""VFX Deck — a handheld video effects console.
+"""Handheld Video Synth — a pocket computer for video effects.
 
 Runs on desktop (pygame + OpenGL 2.1) and on the GPi Case's Pi Zero 2W
 (dispmanx EGL + GLES2 via pi_backend). Shaders speak the recurBOY/glslViewer
@@ -50,7 +50,7 @@ class DesktopPlatform:
         pygame.init()
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 2)
         pygame.display.set_mode((w, h), pygame.OPENGL | pygame.DOUBLEBUF)
-        pygame.display.set_caption("VFX Deck")
+        pygame.display.set_caption("Handheld Video Synth")
         pygame.key.set_repeat(230, 35)
         for i in range(pygame.joystick.get_count()):
             pygame.joystick.Joystick(i).init()

@@ -1,6 +1,6 @@
-# VFX Deck
+# Handheld Video Synth
 
-**A pocket computer for video effects.** VFX Deck turns a Retroflag GPi Case
+**A pocket computer for video effects.** Handheld Video Synth turns a Retroflag GPi Case
 (Raspberry Pi Zero 2 W) into a handheld video effects console: it plays video
 (YouTube pulls, camera, generative), melts it through a library of live GLSL
 effects, reacts to music (each clip's own sound or NTS internet radio),
@@ -29,7 +29,7 @@ rsync -az --exclude .venv --exclude .git ./ pi@retropie.local:/home/pi/VideoBoy/
 ssh pi@retropie.local 'bash /home/pi/VideoBoy/pi/install_videoboy.sh'
 ```
 
-Reboot the Pi: a **VFX Deck** shelf appears in EmulationStation with carts.
+Reboot the Pi: a **Handheld Video Synth** shelf appears in EmulationStation with carts.
 To press a complete SD card image ("cart") for distribution, see
 [docs/CART_IMAGE.md](docs/CART_IMAGE.md).
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# VFX Deck installer — run ON the Pi (RetroPie). Idempotent.
+# Handheld Video Synth installer — run ON the Pi (RetroPie). Idempotent.
 # Installs python deps (piwheels), a static ffmpeg, the EmulationStation
 # system, the launcher, and the starter carts.
 set -e
@@ -46,7 +46,7 @@ import sys
 path = sys.argv[1]
 entry = """  <system>
     <name>videoboy</name>
-    <fullname>VFX Deck</fullname>
+    <fullname>Handheld Video Synth</fullname>
     <path>/home/pi/RetroPie/roms/videoboy</path>
     <extension>.vsb .VSB</extension>
     <command>/home/pi/VideoBoy/launch.sh %ROM%</command>
@@ -59,8 +59,8 @@ with open(path) as f:
 cfg = cfg.replace("</systemList>", entry)
 with open(path, "w") as f:
     f.write(cfg)
-print("VFX Deck system registered (backup at %s.bak-videoboy)" % path)
+print("Handheld Video Synth system registered (backup at %s.bak-videoboy)" % path)
 EOF
 fi
 
-echo "== done — restart EmulationStation (or reboot) to see the VFX Deck shelf =="
+echo "== done — restart EmulationStation (or reboot) to see the Handheld Video Synth shelf =="
