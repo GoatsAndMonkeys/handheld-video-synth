@@ -933,6 +933,10 @@ class Instrument:
         self._overlay_key = None
         self._help_key = None
         self._toast_until = 0.0     # hidden mode: flash the bar after a change
+        self.fps_w, self.fps_h = 64, 22
+        self.fps_tex = make_texture(self.fps_w, self.fps_h)
+        self._fps = 0.0
+        self._fps_key = None
 
         self.meta = {}  # shader sidecar metadata, loaded lazily per shader
 
@@ -1351,6 +1355,25 @@ class Instrument:
     def draw_fullscreen(self):
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, 3)
 
+    def draw_panel(self, tex, x, y, pw, ph):
+        GL.glEnable(GL.GL_SCISSOR_TEST)
+        GL.glScissor(x, y, pw, ph)
+        self.overlay_prog.use()
+        self.overlay_prog.set4f("u_rect", x / float(self.w), y / float(self.h),
+                                pw / float(self.w), ph / float(self.h))
+        self.overlay_prog.set_tex("u_tex0", 0, tex)
+        self.draw_fullscreen()
+        GL.glDisable(GL.GL_SCISSOR_TEST)
+
+    def draw_fps(self):
+        label = "%d fps" % int(self._fps + 0.5)
+        if label != self._fps_key:
+            self._fps_key = label
+            raw = self.plat.text_image([label], self.fps_w, self.fps_h)
+            upload_raw(self.fps_tex, self.fps_w, self.fps_h, raw)
+        self.draw_panel(self.fps_tex, self.w - self.fps_w, self.h - self.fps_h,
+                        self.fps_w, self.fps_h)
+
     def set_common(self, prog, step, top=True):
         import math
         prog.set1f("u_time", self.t)
@@ -1508,6 +1531,8 @@ class Instrument:
 
     def render(self, dt):
         import math
+        if dt > 0:
+            self._fps += (1.0 / dt - self._fps) * 0.08
         step = self.cur_step()
         spd = step["speed"]
         if step["lfo"][3]:                   # "auto": music drives the clock
@@ -1578,14 +1603,8 @@ class Instrument:
 
         if self.menu_open:
             self.update_menu()
-            GL.glEnable(GL.GL_SCISSOR_TEST)
-            GL.glScissor(0, 0, self.w, self.menu_h)
-            self.overlay_prog.use()
-            self.overlay_prog.set2f("u_resolution", self.w, self.h)
-            self.overlay_prog.set1f("u_strip", self.menu_h / float(self.h))
-            self.overlay_prog.set_tex("u_tex0", 0, self.menu_tex)
-            self.draw_fullscreen()
-            GL.glDisable(GL.GL_SCISSOR_TEST)
+            self.draw_panel(self.menu_tex, 0, 0, self.w, self.menu_h)
+            self.draw_fps()
             self.plat.flip()
             return
 
@@ -1597,14 +1616,9 @@ class Instrument:
             else:
                 self.update_help(self.edit_step())
                 strip, tex = self.help_h, self.help_tex
-            GL.glEnable(GL.GL_SCISSOR_TEST)
-            GL.glScissor(0, 0, self.w, strip)
-            self.overlay_prog.use()
-            self.overlay_prog.set2f("u_resolution", self.w, self.h)
-            self.overlay_prog.set1f("u_strip", strip / float(self.h))
-            self.overlay_prog.set_tex("u_tex0", 0, tex)
-            self.draw_fullscreen()
-            GL.glDisable(GL.GL_SCISSOR_TEST)
+            self.draw_panel(tex, 0, 0, self.w, strip)
+        if self.overlay_mode != 2:      # fps hides with the rest of the UI
+            self.draw_fps()
 
         self.plat.flip()
 
