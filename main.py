@@ -919,6 +919,7 @@ class Instrument:
         self.streamer = None
         self.stream_cfg = load_stream_cfg()
         self.output_idx = 0
+        self.output_ui = False   # include the UI panels in streams/recordings
         self._frame_no = 0
         self.menu_open = False
         self.menu_idx = 0
@@ -1173,6 +1174,9 @@ class Instrument:
                     ("" if self.stream_cfg["live"] else "  [no key]")]
             for i, label in enumerate(outs):
                 rows.append(("out", i, label, i == self.output_idx))
+            rows.append(("outui", None, "show UI in output: %s"
+                         % ("ON (demo mode)" if self.output_ui else "off"),
+                         self.output_ui))
         elif key == "sets":
             for i, (pack, name) in enumerate(self.list_sets()):
                 active = (pack == self.pack_rel and name == self.playlist_name
@@ -1321,6 +1325,8 @@ class Instrument:
                 self.radio.retune(self.current_clip_path())
             elif kind == "out":
                 self._set_output(i)
+            elif kind == "outui":
+                self.output_ui = not self.output_ui
             elif kind == "set":
                 sets = self.list_sets()
                 if i < len(sets):
@@ -1556,6 +1562,14 @@ class Instrument:
         self.overlay_prog.set_tex("u_tex0", 0, tex)
         self.draw_fullscreen()
         GL.glDisable(GL.GL_SCISSOR_TEST)
+
+    def _push_stream(self):
+        self._frame_no += 1
+        if self.streamer is not None and self._frame_no % 2 == 0:
+            GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
+            raw = GL.glReadPixels(0, 0, self.w, self.h,
+                                  GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
+            self.streamer.push(raw)
 
     def draw_fps(self):
         label = "%d fps" % int(self._fps + 0.5)
@@ -1808,18 +1822,17 @@ class Instrument:
         GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.w, self.h)
         self.delay_head = (self.delay_head + 1) % self.DELAY_N
 
-        # stream the clean output (pre-overlay), every other frame
-        self._frame_no += 1
-        if self.streamer is not None and self._frame_no % 2 == 0:
-            GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
-            raw = GL.glReadPixels(0, 0, self.w, self.h,
-                                  GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
-            self.streamer.push(raw)
+        # stream the clean output (pre-overlay) unless "UI in output" is
+        # on — then the tap moves to after the panels are drawn
+        if not self.output_ui:
+            self._push_stream()
 
         if self.menu_open:
             self.update_menu()
             self.draw_panel(self.menu_tex, 0, 0, self.w, self.menu_h)
             self.draw_fps()
+            if self.output_ui:
+                self._push_stream()
             self.plat.flip()
             return
 
@@ -1834,6 +1847,8 @@ class Instrument:
             self.draw_panel(tex, 0, 0, self.w, strip, th)
         if self.overlay_mode != 2:      # fps hides with the rest of the UI
             self.draw_fps()
+        if self.output_ui:
+            self._push_stream()
 
         self.plat.flip()
 
@@ -1911,6 +1926,8 @@ def main():
     ap.add_argument("--srcres", type=parse_size, default=None,
                     help="explicit source decode res, e.g. 480x360 "
                          "(the Zero 2W's measured ceiling)")
+    ap.add_argument("--outui", action="store_true",
+                    help="include the UI overlays in streams/recordings")
     args = ap.parse_args()
 
     if args.rom:
@@ -1939,6 +1956,7 @@ def main():
 
     inst = Instrument(plat, args)
     inst.overlay_mode = args.ui
+    inst.output_ui = args.outui
     if inst.deck and args.deckmode == "play":
         # only the Setlist cart boots into the deck — the instrument
         # cart always boots browsing effects (deck reachable via Sel+L/R)

@@ -206,6 +206,8 @@ A/S shoulders, Tab loader, M build/play, L stack, Backspace clear layers,
 Video source :  <playlist collections → videos, camera, plasma>
 Audio source :  no audio / video's own sound / NTS 1 / NTS 2
 Output       :  screen only / to mixer (laptop) / record to SD / go live
+                + "show UI in output" — put the control bar, menus and
+                  FPS in the stream (demo mode; normally output is clean)
 FX deck      :  effect setlists from every pack + "* everything"
 My decks     :  named decks — build, name, reorder, copy scenes
 ```
