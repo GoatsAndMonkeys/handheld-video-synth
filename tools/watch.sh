@@ -5,6 +5,6 @@
 #
 # Usage: tools/watch.sh [port]   (default 5001)
 exec ffplay -hide_banner -loglevel error \
-    -fflags nodelay -flags low_delay -framedrop \
+    -fflags nobuffer -flags low_delay -framedrop \
     -window_title "HVS-80" \
     "udp://0.0.0.0:${1:-5001}"
