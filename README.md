@@ -252,6 +252,13 @@ Pull videos from YouTube (playlists become collections automatically):
     low-latency window showing the handheld — then Discord → **Go Live**
     → share that window. (Discord has no stream-in URL, so something on
     the laptop has to show the video; this is the lightest something.)
+  - **Discord audio**: the stream already carries the synth's sound —
+    use Go Live's "share audio" toggle if your Discord has it; otherwise
+    `brew install blackhole-2ch`, make a Multi-Output Device
+    (speakers + BlackHole) in Audio MIDI Setup, and set Discord's mic
+    input to BlackHole. Either way, turn **off** Discord's Noise
+    Suppression / Echo Cancellation / Auto Gain — voice processing
+    eats music.
   - **Discord as a camera**: OBS → *Start Virtual Camera* → pick "OBS
     Virtual Camera" in a voice channel.
 - **record to SD** — mp4s land in the pack's clips and instantly become
