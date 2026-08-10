@@ -4,6 +4,23 @@ From a blank SD card to a working Handheld Video Synth — and then to a
 single `.img` file anyone can flash and slot into the device. No prior
 Raspberry Pi experience assumed.
 
+## Option A — flash the prebuilt image (easiest)
+
+If a release image is available on the
+[Releases page](https://github.com/GoatsAndMonkeys/handheld-video-synth/releases):
+
+1. Download `hvs-cart.img.gz` and flash it to a 16 GB+ card with
+   Raspberry Pi Imager or balenaEtcher.
+2. Add your WiFi: put a `wpa_supplicant.conf` on the card's `boot`
+   partition (template in step 2 below).
+3. Slot the card, boot — first boot auto-expands, then lands on the
+   Handheld Video Synth shelf. Load your playlists with
+   `ytget.py ... --push` (step 5 below).
+
+That's the whole install. Everything below is **Option B: building the
+image yourself** — also how release images are made (see "Releasing an
+image" at the end).
+
 ## 0. What you need
 
 **Hardware**
@@ -159,6 +176,22 @@ Flash `hvs-cart.img.gz` onto any SD card with Raspberry Pi Imager or
 balenaEtcher. First boot expands the filesystem, then lands on the shelf.
 One image → as many carts as you have cards. A spare GPi cartridge shell
 + a Zero 2 W + a flashed card = a complete, giftable instrument.
+
+## Releasing an image
+
+To turn a captured image into a publishable release in one step —
+strips videos, decks, stream keys, WiFi credentials, histories and
+logs, then shrinks (requires Docker):
+
+```sh
+tools/clean_image.sh hvs-cart.img
+gh release create v1.0 hvs-cart.img.gz -t "Handheld Video Synth v1.0" \
+   -n "Flash, add wifi, boot. See docs/SD_CARD_GUIDE.md Option A."
+```
+
+Always flash-test the cleaned image on a spare card before publishing.
+(GitHub release assets cap at 2 GiB per file; a content-free image fits
+comfortably.)
 
 ## 10. Sharing images publicly
 
