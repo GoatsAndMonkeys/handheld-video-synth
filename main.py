@@ -897,9 +897,9 @@ class Instrument:
             step.setdefault("lfo", [False, False, False])
             while len(step["lfo"]) < 4:      # 4th slot = speed ("auto" mode)
                 step["lfo"].append(False)
-            step.setdefault("lfoband", [0, 1, 2, 1])  # 0=low 1=mid 2=high
+            step.setdefault("lfoband", [3, 3, 3, 3])  # 3=ALL, 0/1/2=L/M/H
             while len(step["lfoband"]) < 4:
-                step["lfoband"].append(1)
+                step["lfoband"].append(3)
             step["x"] = [float(v) for v in step["x"]]
         return pl
 
@@ -1213,11 +1213,11 @@ class Instrument:
         elif ev in ("lfoband_up", "lfoband_down"):
             if self.param_row < 4:
                 s = self.cur_step()
-                lb = s.setdefault("lfoband", [0, 1, 2, 1])
+                lb = s.setdefault("lfoband", [3, 3, 3, 3])
                 while len(lb) < 4:
-                    lb.append(1)
+                    lb.append(3)
                 delta = 1 if ev == "lfoband_up" else -1
-                lb[self.param_row] = (lb[self.param_row] + delta) % 3
+                lb[self.param_row] = (lb[self.param_row] + delta) % 4
                 s["lfo"][self.param_row] = True  # picking a band arms it
         return True
 
@@ -1269,16 +1269,15 @@ class Instrument:
         import math
         prog.set1f("u_time", self.t)
         prog.set2f("u_resolution", self.w, self.h)
-        bands = (self.radio.bass, self.radio.level, self.radio.high)
-        lb = step.get("lfoband", [0, 1, 2, 1])
+        lb = step.get("lfoband", [3, 3, 3, 3])
         for i in range(3):
             v = step["x"][i]
             if step.get("lfo", [False] * 4)[i]:
-                b = lb[i] if i < len(lb) else i
+                b = lb[i] if i < len(lb) else 3
                 if self.radio.active:
-                    v += 0.55 * bands[b] - 0.1   # follow the chosen band
+                    v += 0.55 * self._band_value(b) - 0.1
                 else:
-                    rate = (0.7, 2.0, 4.5)[b]    # low/mid/high sine speeds
+                    rate = (0.7, 2.0, 4.5, 1.3)[b]
                     v += 0.25 * math.sin(self.t * rate + i * 2.1)
             if top and self.punch and self.param_row == i:
                 v += 0.5
@@ -1309,14 +1308,25 @@ class Instrument:
     def _param_names(self, step):
         return [p["name"] for p in self._get_meta(step["shader"])["params"]]
 
+    def _band_value(self, b):
+        r = self.radio
+        if b == 0:
+            return r.bass
+        if b == 1:  # approximated mid: level minus the band extremes
+            return min(1.0, max(0.0, r.level - 0.45 * (r.bass + r.high)) * 2.5)
+        if b == 2:
+            return r.high
+        return r.level  # 3 = ALL frequencies
+
     def update_overlay(self, step):
         names = self._param_names(step) + ["spd"]
         parts = []
-        lb = step.get("lfoband", [0, 1, 2, 1])
+        lb = step.get("lfoband", [3, 3, 3, 3])
         for i in range(4):
             label = names[i]
             if step["lfo"][i]:
-                label += "~" + "LMH"[lb[i] if i < len(lb) else 1]
+                b = lb[i] if i < len(lb) else 3
+                label += "~" + ("" if b == 3 else "LMH"[b])
             val = step["x"][i] if i < 3 else step["speed"]
             fmt = "[%s %.2f]" if self.param_row == i else "%s %.2f"
             parts.append(fmt % (label, val))
@@ -1381,7 +1391,7 @@ class Instrument:
                      % (marker(5), "aud"))
         lines.append("dpad </>: pick control   dpad ^/v: turn it")
         lines.append("A hold: punch   B: dice   Y: freeze   X: LFO")
-        lines.append("hold X + ^v: LFO band low/mid/high (~L ~M ~H)")
+        lines.append("hold X + ^v: LFO band all/low/mid/high (~ ~L ~M ~H)")
         lines.append("L/R: prev/next effect    Start: video/audio loader")
         lines.append("Sel+A: stack layer   Sel+B: clear layers")
         lines.append("Select: hide UI   Sel+L/R: build<->play   Sel+Start: quit")
@@ -1396,12 +1406,12 @@ class Instrument:
         step = self.cur_step()
         spd = step["speed"]
         if step["lfo"][3]:                   # "auto": music drives the clock
-            b = step.get("lfoband", [0, 1, 2, 1])[3]
-            band_v = (self.radio.bass, self.radio.level, self.radio.high)[b]
+            b = step.get("lfoband", [3, 3, 3, 3])[3]
             if self.radio.active:
-                spd = min(1.0, spd * 0.4 + band_v * 0.9)
+                spd = min(1.0, spd * 0.4 + self._band_value(b) * 0.9)
             else:
-                spd = min(1.0, spd + 0.25 * math.sin(self.t * (0.7, 1.3, 2.6)[b]))
+                spd = min(1.0, spd + 0.25 * math.sin(
+                    self.t * (0.7, 1.3, 2.6, 1.0)[b]))
         if not self.frozen:
             self.t += dt * (0.1 + spd * 1.9)
 
