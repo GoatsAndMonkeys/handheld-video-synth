@@ -1152,6 +1152,20 @@ class Instrument:
                 self.deck_idx = 0
                 self.deck_mode = False
                 self._save_deck()
+        elif ev == "freeze":  # Y in the deck list = delete scene
+            rows = self._menu_rows()
+            if (self.menu_level == 1 and rows and
+                    self.menu_idx < len(rows) and
+                    rows[self.menu_idx][0] == "deck"):
+                i = rows[self.menu_idx][1]
+                del self.deck[i]
+                if not self.deck:
+                    self.deck_mode = False
+                    self.deck_idx = 0
+                else:
+                    self.deck_idx = min(self.deck_idx, len(self.deck) - 1)
+                self._save_deck()
+                self.menu_idx = max(0, self.menu_idx - 1)
         elif ev == "randomize":  # B = back / close
             if self.menu_level == 2:
                 self.menu_level = 1
@@ -1407,6 +1421,8 @@ class Instrument:
         elif self.menu_level == 2:
             lines = ["%s   A: play   B: back   Start: close"
                      % str(self.menu_col).upper()]
+        elif self.MENU_CATS[self.menu_cat][0] == "deck":
+            lines = ["MY DECK   A: play   Y: delete   B: back   Start: close"]
         else:
             lines = ["%s   A: apply   B: back   Start: close"
                      % self.MENU_CATS[self.menu_cat][1].upper()]
