@@ -516,8 +516,17 @@ class Streamer:
             cmd += (["-stream_loop", "-1", "-re"] if is_file else []) + ["-i", src]
         else:
             cmd += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
-        vcodec = (["-c:v", "h264_v4l2m2m"] if IS_PI
-                  else ["-c:v", "libx264", "-preset", "veryfast"])
+        # the Pi hw encoder emits SPS/PPS + IDR exactly once, so late
+        # joiners on a UDP stream can never sync — the mixer path uses
+        # software x264 (measured 2x realtime on the Zero 2W). rtmp and
+        # file recording keep the free hw encoder.
+        if IS_PI and dest.startswith(("udp:", "srt:")):
+            vcodec = ["-c:v", "libx264", "-preset", "ultrafast",
+                      "-tune", "zerolatency"]
+        elif IS_PI:
+            vcodec = ["-c:v", "h264_v4l2m2m"]
+        else:
+            vcodec = ["-c:v", "libx264", "-preset", "veryfast"]
         cmd += (["-map", "0:v", "-map", "1:a", "-vf", "vflip"] + vcodec +
                 ["-b:v", "1200k", "-g", str(fps * 2), "-pix_fmt", "yuv420p",
                  "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-shortest"])
