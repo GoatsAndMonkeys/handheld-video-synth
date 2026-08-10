@@ -64,5 +64,5 @@ redistributed here, which keeps obligations minimal either way.
 
 No video or music content is included in this repository or in public
 releases. Clips downloaded with `ytget.py` are for the user's own device;
-see [docs/CART_IMAGE.md](docs/CART_IMAGE.md) on keeping shared SD images
+see [docs/SD_CARD_GUIDE.md](docs/SD_CARD_GUIDE.md) on keeping shared SD images
 content-free.

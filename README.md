@@ -31,7 +31,7 @@ ssh pi@retropie.local 'bash /home/pi/handheld-video-synth/pi/install.sh'
 
 Reboot the Pi: a **Handheld Video Synth** shelf appears in EmulationStation with carts.
 To press a complete SD card image ("cart") for distribution, see
-[docs/CART_IMAGE.md](docs/CART_IMAGE.md).
+[docs/SD_CARD_GUIDE.md](docs/SD_CARD_GUIDE.md).
 
 ## Architecture
 
@@ -183,7 +183,7 @@ pi_backend.py        dispmanx EGL + GLES2 via ctypes, evdev input, PIL text
 ytget.py             YouTube → 320x240 clips (+audio), playlist collections
 launch.sh, pi/       RetroPie launcher, installer, starter carts (.vsb)
 packs/demo/          starter effects + your clips     packs/recurboy/  GPL shaders
-docs/CART_IMAGE.md   pressing a full SD card image
+docs/SD_CARD_GUIDE.md   pressing a full SD card image
 ```
 
 ## Origin projects
