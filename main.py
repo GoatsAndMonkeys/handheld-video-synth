@@ -1698,8 +1698,9 @@ def main():
     ap.add_argument("--deckmode", choices=["build", "play"], default=None,
                     help="force deck mode at boot")
     ap.add_argument("--fullres", action="store_true",
-                    help="decode video sources at full engine res "
-                         "(always on for desktop; Pi experiment)")
+                    help="decode video sources at full engine res. Always on "
+                         "for desktop. NOT viable on the Zero 2W (exhausts "
+                         "RAM and swap-thrashes); reserved for the CM4 build")
     args = ap.parse_args()
 
     if args.rom:
