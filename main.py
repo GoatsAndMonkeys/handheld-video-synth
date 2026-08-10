@@ -1542,12 +1542,17 @@ class Instrument:
     def draw_fullscreen(self):
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, 3)
 
-    def draw_panel(self, tex, x, y, pw, ph):
+    def draw_panel(self, tex, x, y, pw, ph, tex_h=None):
+        # tex_h: full texture height when only the top ph px are in use —
+        # keeps text 1:1 instead of squeezing the whole texture into ph
+        th = tex_h or ph
         GL.glEnable(GL.GL_SCISSOR_TEST)
         GL.glScissor(x, y, pw, ph)
         self.overlay_prog.use()
-        self.overlay_prog.set4f("u_rect", x / float(self.w), y / float(self.h),
-                                pw / float(self.w), ph / float(self.h))
+        self.overlay_prog.set4f("u_rect",
+                                x / float(self.w),
+                                (y + ph - th) / float(self.h),
+                                pw / float(self.w), th / float(self.h))
         self.overlay_prog.set_tex("u_tex0", 0, tex)
         self.draw_fullscreen()
         GL.glDisable(GL.GL_SCISSOR_TEST)
@@ -1822,11 +1827,11 @@ class Instrument:
         if self.overlay_mode != 2 or show_toast:
             if self.overlay_mode == 0 or show_toast:
                 self.update_overlay(step)
-                strip, tex = self._ov_used, self.overlay_tex
+                strip, tex, th = self._ov_used, self.overlay_tex, self.strip_h
             else:
                 self.update_help(self.edit_step())
-                strip, tex = self.help_h, self.help_tex
-            self.draw_panel(tex, 0, 0, self.w, strip)
+                strip, tex, th = self.help_h, self.help_tex, self.help_h
+            self.draw_panel(tex, 0, 0, self.w, strip, th)
         if self.overlay_mode != 2:      # fps hides with the rest of the UI
             self.draw_fps()
 
