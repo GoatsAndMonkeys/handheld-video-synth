@@ -1779,7 +1779,10 @@ class Instrument:
         tap = self.delay_ring[(self.delay_head - k) % self.DELAY_N]
         for li, ls in enumerate(chain):
             prog = self.programs.get(ls["shader"])
-            if prog is None:
+            if prog is None:            # deck-scene layers load lazily here
+                self._ensure_program(ls["shader"])
+                prog = self.programs.get(ls["shader"])
+            if prog is None:            # shader truly broken: last resort
                 prog = list(self.programs.values())[0]
             prog.use()
             self.set_common(prog, ls, top=(ls is target))
