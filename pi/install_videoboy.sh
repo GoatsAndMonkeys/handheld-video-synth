@@ -1,29 +1,42 @@
 #!/bin/bash
-# VideoBoy installer — run ON the Pi. Idempotent.
+# VFX Deck installer — run ON the Pi (RetroPie). Idempotent.
+# Installs python deps (piwheels), a static ffmpeg, the EmulationStation
+# system, the launcher, and the starter carts.
 set -e
 
 APP=/home/pi/VideoBoy
 ROMS=/home/pi/RetroPie/roms/videoboy
 ES_CFG=/etc/emulationstation/es_systems.cfg
 
-echo "== deps =="
-python3 - <<'EOF'
-missing = []
-for m in ("PIL", "numpy", "evdev"):
-    try:
-        __import__(m)
-    except ImportError:
-        missing.append(m)
-print("MISSING:" + ",".join(missing))
+echo "== python deps =="
+python3 - <<'EOF' || NEED_PIP=1
+import PIL, evdev  # noqa
+print("Pillow + evdev already present")
 EOF
+if [ -n "$NEED_PIP" ]; then
+    pip3 install --user --index-url https://www.piwheels.org/simple \
+        "Pillow==9.5.0" evdev
+fi
 
-echo "== dirs =="
+echo "== ffmpeg =="
+if [ ! -x /home/pi/bin/ffmpeg ]; then
+    mkdir -p /home/pi/bin
+    cd /tmp
+    curl -sfL -o ffs.tar.xz \
+        https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-armhf-static.tar.xz
+    tar xf ffs.tar.xz
+    cp ffmpeg-*-armhf-static/ffmpeg /home/pi/bin/
+    rm -rf ffmpeg-*-armhf-static ffs.tar.xz
+fi
+/home/pi/bin/ffmpeg -version | head -1
+
+echo "== launcher + carts =="
 mkdir -p "$ROMS"
-chmod +x "$APP/pi/launch.sh"
 cp "$APP/pi/launch.sh" "$APP/launch.sh"
-chmod +x "$APP/launch.sh"
+chmod +x "$APP/launch.sh" "$APP/pi/launch.sh"
+cp -n "$APP"/pi/roms/*.vsb "$ROMS/" 2>/dev/null || true
 
-echo "== ES system =="
+echo "== EmulationStation system =="
 if grep -q "<name>videoboy</name>" "$ES_CFG"; then
     echo "videoboy system already registered"
 else
@@ -33,7 +46,7 @@ import sys
 path = sys.argv[1]
 entry = """  <system>
     <name>videoboy</name>
-    <fullname>VideoBoy</fullname>
+    <fullname>VFX Deck</fullname>
     <path>/home/pi/RetroPie/roms/videoboy</path>
     <extension>.vsb .VSB</extension>
     <command>/home/pi/VideoBoy/launch.sh %ROM%</command>
@@ -46,8 +59,8 @@ with open(path) as f:
 cfg = cfg.replace("</systemList>", entry)
 with open(path, "w") as f:
     f.write(cfg)
-print("videoboy system registered (backup at %s.bak-videoboy)" % path)
+print("VFX Deck system registered (backup at %s.bak-videoboy)" % path)
 EOF
 fi
 
-echo "== done =="
+echo "== done — restart EmulationStation (or reboot) to see the VFX Deck shelf =="
