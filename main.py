@@ -1282,9 +1282,9 @@ class Instrument:
             if top and self.punch and self.param_row == i:
                 v += 0.5
             prog.set1f("u_x%d" % i, min(1.0, max(0.0, v)))
-        prog.set1f("u_a0", bands[0])
-        prog.set1f("u_a1", bands[1])
-        prog.set1f("u_a2", bands[2])
+        prog.set1f("u_a0", self.radio.bass)
+        prog.set1f("u_a1", self.radio.level)
+        prog.set1f("u_a2", self.radio.high)
         # legacy conjur/r_e_c_u_r shader compatibility
         prog.set1f("ftime", self.t - float(int(self.t)))
         prog.set1f("u_time", self.t)
