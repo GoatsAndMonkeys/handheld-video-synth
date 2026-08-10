@@ -28,6 +28,10 @@ subject to copyright:
 | `haeckel` | superformula (Gielis curve) forms | SUPER_HAECKEL_ADVENTURES_64 |
 | `gravity` | attractor-lensed feedback | gravity_waaaves |
 | `cellular` | numerical-feedback automata | integerfeedbackbasic0 / cellular_automata_lab |
+| `delay` | framebuffer video delay lines | FB_DELAY_REAL / gravity_waaaves |
+| `convolve` | convolution kernels on video + feedback | convolutional_chaos |
+| `phosphor` | oscilloscope-style audio-visual traces | phosphorm |
+| `glyphworld` | discrete-glyph audio-visual fields | glyph_worlds0 |
 
 If any of this ever ships commercially, reach out to Andrei first as a
 courtesy — this scene runs on goodwill.

@@ -1,0 +1,17 @@
+{
+  "desc": "audio Lissajous scope",
+  "params": [
+    {
+      "name": "figure",
+      "help": "curve ratio"
+    },
+    {
+      "name": "amp",
+      "help": "audio-driven size"
+    },
+    {
+      "name": "decay",
+      "help": "phosphor persistence"
+    }
+  ]
+}

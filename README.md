@@ -55,22 +55,23 @@ RetroPie openFrameworks synths target.
 
 ## Effects
 
-| shader | what it does | origin / homage | origin project's license |
-| --- | --- | --- | --- |
-| `waaave` + 4 banks | feedback zones: mix/lumakey, drift, color life/death, mirrors | [waaave_pool](https://github.com/ex-zee-ex/waaaave_pool) (Andrei Jay) | — \* |
-| `chromab` | brightness-band colorizer / solarizer | CHROMATIC_ABERRATION (Andrei Jay) | — \* |
-| `lifeosc` | chaotic video oscillators, video-phase-modulated | artificial_life (Andrei Jay) | — \* |
-| `slitscan` | moving scanline freezes time across space | temporal_vortex (Andrei Jay) | — \* |
-| `haeckel` | superformula radiolaria with feedback trails | SUPER_HAECKEL_ADVENTURES_64 (Andrei Jay) | — \* |
-| `gravity` | orbiting attractor lenses the feedback | gravity_waaaves (Andrei Jay) | — \* |
-| `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) | — \* |
-| `ascii`, `gameboy`, `colorize`, `feedback` | terminal glyphs, 4-shade dither, color, trails | original to this project | GPL-3.0 (this project) |
-| `packs/recurboy/*` | 15 shaders, **verbatim** | official [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection (Tim Caldwell & contributors) | **GPL-3.0** — [pack LICENSE](packs/recurboy/LICENSE) |
+| shader | what it does | origin / homage |
+| --- | --- | --- |
+| `waaave` + 4 banks | feedback zones: mix/lumakey, drift, color life/death, mirrors | [waaave_pool](https://github.com/ex-zee-ex/waaaave_pool) (Andrei Jay) |
+| `delay` | true video delay line — echoes from up to ~a second ago | FB_DELAY_REAL / gravity_waaaves (Andrei Jay) |
+| `convolve` | morphing blur↔sharpen kernels with feedback resonance | convolutional_chaos (Andrei Jay) |
+| `phosphor` | audio-driven Lissajous scope with phosphor decay | phosphorm (Andrei Jay) |
+| `glyphworld` | audio-reactive glyph fields over video | glyph_worlds0 (Andrei Jay) |
+| `chromab` | brightness-band colorizer / solarizer | CHROMATIC_ABERRATION (Andrei Jay) |
+| `lifeosc` | chaotic video oscillators, video-phase-modulated | artificial_life (Andrei Jay) |
+| `slitscan` | moving scanline freezes time across space | temporal_vortex (Andrei Jay) |
+| `haeckel` | superformula radiolaria with feedback trails | SUPER_HAECKEL_ADVENTURES_64 (Andrei Jay) |
+| `gravity` | orbiting attractor lenses the feedback | gravity_waaaves (Andrei Jay) |
+| `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) |
+| `ascii`, `gameboy`, `colorize`, `feedback` | terminal glyphs, 4-shade dither, color, trails | original to this project |
+| `packs/recurboy/*` | 15 shaders, **verbatim** (GPL-3.0, [pack LICENSE](packs/recurboy/LICENSE)) | official [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection (Tim Caldwell & contributors) |
 
-\* We could not determine a license for these upstream projects, so **no
-code from them is used**: these shaders are from-scratch implementations of
-the *techniques* their instruments demonstrate, released under this
-project's GPL-3.0. Full details in [CREDITS.md](CREDITS.md).
+Attribution and licensing details for every effect: [CREDITS.md](CREDITS.md).
 
 Every effect exposes exactly **3 params + speed** (the recurBOY convention),
 so any effect maps to the same controls, and every param can follow the

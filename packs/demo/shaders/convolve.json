@@ -1,0 +1,17 @@
+{
+  "desc": "morphing kernel chaos",
+  "params": [
+    {
+      "name": "kernel",
+      "help": "blur <-> sharpen"
+    },
+    {
+      "name": "reso",
+      "help": "feedback resonance"
+    },
+    {
+      "name": "wet",
+      "help": "dry <-> convolved"
+    }
+  ]
+}

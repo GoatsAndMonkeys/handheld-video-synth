@@ -1,0 +1,17 @@
+{
+  "desc": "video delay line",
+  "params": [
+    {
+      "name": "time",
+      "help": "echo distance into the past"
+    },
+    {
+      "name": "echo",
+      "help": "dry <-> delayed"
+    },
+    {
+      "name": "regen",
+      "help": "echo trails"
+    }
+  ]
+}

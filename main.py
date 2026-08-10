@@ -423,6 +423,15 @@ class RadioAudio:
         except Exception:
             pass
 
+    def pause(self, flag):
+        import signal
+        for p in (self.proc, self.play):
+            if p is not None:
+                try:
+                    os.kill(p.pid, signal.SIGSTOP if flag else signal.SIGCONT)
+                except Exception:
+                    pass
+
     def stop(self):
         self._pending = None
         for p in (self.proc, self.play):
@@ -734,6 +743,17 @@ class Sources:
         self.slot_idx = (self.slot_idx + delta) % len(self.slots)
         self._post_switch()
 
+    def pause(self, flag):
+        """Freeze/unfreeze the clip decoder in place (SIGSTOP keeps the
+        exact moment; SIGCONT resumes in sync)."""
+        import signal
+        if self._ff is not None:
+            try:
+                os.kill(self._ff.proc.pid,
+                        signal.SIGSTOP if flag else signal.SIGCONT)
+            except Exception:
+                pass
+
     def advance(self):
         """Video finished: play the next one in the same collection."""
         kind, _ = self.slots[self.slot_idx]
@@ -893,6 +913,12 @@ class Instrument:
         self.prev_tex = make_texture(self.w, self.h, bytes(self.w * self.h * 3))
         self.gen_tex = make_texture(self.w, self.h)
         self.chain_tex = make_texture(self.w, self.h)  # inter-layer buffer
+        # delay line: ring of past output frames (u_tex2 tap, ~0.8s reach)
+        self.DELAY_N = 16
+        self.delay_ring = [make_texture(self.w, self.h,
+                                        bytes(self.w * self.h * 3))
+                           for _ in range(self.DELAY_N)]
+        self.delay_head = 0
 
         atlas_raw, aw, ah = plat.glyph_atlas(ASCII_CHARS)
         self.atlas = make_texture(aw, ah, atlas_raw)
@@ -1261,6 +1287,9 @@ class Instrument:
                         self.deck[self.deck_idx % len(self.deck)]["shader"])
         elif ev == "freeze":
             self.frozen = not self.frozen
+            self.sources.pause(self.frozen)     # hold the video frame
+            if self.radio.is_clip:              # and its sound, in sync
+                self.radio.pause(self.frozen)   # (live radio keeps playing)
         elif ev == "lfo":
             if self.param_row < 4:  # any x param or speed ("auto")
                 s = self.edit_step()
@@ -1466,7 +1495,7 @@ class Instrument:
         lines.append("%s %-7s audio: clip sound / NTS radio (LFOs follow it)"
                      % (marker(5), "aud"))
         lines.append("dpad </>: pick control   dpad ^/v: turn it")
-        lines.append("A hold: punch   B: dice   Y: freeze   X: LFO")
+        lines.append("A hold: punch  B: dice  Y: freeze video+time  X: LFO")
         lines.append("hold X + ^v: LFO band all/low/mid/high (~ ~L ~M ~H)")
         lines.append("L/R: prev/next effect    Start: video/audio loader")
         lines.append("Sel+A: stack layer   Sel+B: clear layers")
@@ -1503,7 +1532,8 @@ class Instrument:
             GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.w, self.h)
             src = self.gen_tex
         else:
-            self.sources.update()
+            if not self.frozen:
+                self.sources.update()
             src = self.sources.tex
 
         if self.deck and self.deck_mode:
@@ -1512,6 +1542,9 @@ class Instrument:
             chain = self.layers + [step]
         tex_in = src
         target = self.edit_step()
+        # delay tap depth follows the top effect's first param
+        k = 1 + int(chain[-1]["x"][0] * (self.DELAY_N - 2) + 0.5)
+        tap = self.delay_ring[(self.delay_head - k) % self.DELAY_N]
         for li, ls in enumerate(chain):
             prog = self.programs.get(ls["shader"])
             if prog is None:
@@ -1522,6 +1555,7 @@ class Instrument:
             prog.set_tex("u_tex1", 1, self.prev_tex)
             prog.set_tex("u_atlas", 2, self.atlas)
             prog.set_tex("u_dither", 3, self.bayer)
+            prog.set_tex("u_tex2", 4, tap)
             self.draw_fullscreen()
             if li < len(chain) - 1:
                 GL.glBindTexture(GL.GL_TEXTURE_2D, self.chain_tex)
@@ -1530,6 +1564,9 @@ class Instrument:
                 tex_in = self.chain_tex
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.prev_tex)
         GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.w, self.h)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.delay_ring[self.delay_head])
+        GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.w, self.h)
+        self.delay_head = (self.delay_head + 1) % self.DELAY_N
 
         # stream the clean output (pre-overlay), every other frame
         self._frame_no += 1

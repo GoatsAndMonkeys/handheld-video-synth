@@ -1,0 +1,17 @@
+{
+  "desc": "audio glyph field",
+  "params": [
+    {
+      "name": "dens",
+      "help": "glyph grid density"
+    },
+    {
+      "name": "drive",
+      "help": "audio brightness drive"
+    },
+    {
+      "name": "pal",
+      "help": "palette shift"
+    }
+  ]
+}
