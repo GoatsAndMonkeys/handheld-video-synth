@@ -423,15 +423,22 @@ class PiInput:
                         if self._axis_state(d, e.code, e.value):
                             fresh = False
                             north = self.held.get(ec.BTN_NORTH)
+                            sel = self.held.get(ec.BTN_SELECT)
                             if self.axis["y"] == -1 and old["y"] != -1:
-                                if north:
+                                if sel:
+                                    events.append("layer_focus_up")
+                                    self._select_used = True
+                                elif north:
                                     events.append("lfoband_up")
                                     self._north_used = True
                                 else:
                                     events.append("up")
                                 fresh = True
                             elif self.axis["y"] == 1 and old["y"] != 1:
-                                if north:
+                                if sel:
+                                    events.append("layer_focus_down")
+                                    self._select_used = True
+                                elif north:
                                     events.append("lfoband_down")
                                     self._north_used = True
                                 else:
@@ -452,7 +459,8 @@ class PiInput:
         # auto-repeat held up/down for continuous value sweeps
         now = time.time()
         if (self.axis["y"] != 0 and now >= self._next_repeat
-                and not self.held.get(ec.BTN_NORTH)):
+                and not self.held.get(ec.BTN_NORTH)
+                and not self.held.get(ec.BTN_SELECT)):
             events.append("up" if self.axis["y"] == -1 else "down")
             self._next_repeat = now + self.REPEAT_S
 

@@ -121,6 +121,10 @@ class DesktopPlatform:
                     out.append("layer_add")
                 elif k == pg.K_BACKSPACE:
                     out.append("layer_clear")
+                elif k == pg.K_RIGHTBRACKET:
+                    out.append("layer_focus_up")
+                elif k == pg.K_LEFTBRACKET:
+                    out.append("layer_focus_down")
             elif e.type == pg.KEYUP:
                 if e.key == pg.K_z:
                     out.append("punch_off")
@@ -830,7 +834,8 @@ class Instrument:
         self.t = 0.0
         self.punch = False
         self.frozen = False
-        self.layers = []   # locked background effects (Sel+A stacks)
+        self.layers = []      # locked background effects (Sel+A stacks)
+        self.layer_focus = 0  # 0 = top of chain; Sel+Up/Down digs deeper
 
         # deck: user-saved full scenes (effect+params+video+audio), L/R
         # walks it when non-empty; persisted per pack
@@ -876,7 +881,8 @@ class Instrument:
         self.atlas = make_texture(aw, ah, atlas_raw)
         self.bayer = make_bayer_texture()
 
-        self.strip_h = 44
+        self.strip_h = 76        # tall enough for 3 layer rows + hint
+        self._ov_used = 44
         self.help_h = 196
         self.overlay_tex = make_texture(self.w, self.strip_h)
         self.help_tex = make_texture(self.w, self.help_h)
@@ -907,6 +913,17 @@ class Instrument:
         if self.deck and self.deck_mode:
             return self.deck[self.deck_idx % len(self.deck)]
         return self.playlist["steps"][self.step_idx]
+
+    def chain(self):
+        step = self.cur_step()
+        if self.deck and self.deck_mode:
+            return list(step.get("layers", [])) + [step]
+        return self.layers + [step]
+
+    def edit_step(self):
+        """The chain member currently being edited (Sel+Up/Down picks)."""
+        ch = self.chain()
+        return ch[max(0, len(ch) - 1 - min(self.layer_focus, len(ch) - 1))]
 
     def _ensure_program(self, name):
         if name in self.programs:
@@ -970,6 +987,7 @@ class Instrument:
             json.dump({"name": "deck", "steps": self.deck}, f, indent=2)
 
     def step(self, delta):
+        self.layer_focus = 0
         if self.deck and self.deck_mode:
             self.deck_idx = (self.deck_idx + delta) % len(self.deck)
             self._ensure_program(self.deck[self.deck_idx]["shader"])
@@ -977,7 +995,7 @@ class Instrument:
             self.step_idx = (self.step_idx + delta) % len(self.playlist["steps"])
 
     def nudge(self, delta):
-        s = self.cur_step()
+        s = self.edit_step()
         row = self.PARAM_ROWS[self.param_row]
         if row == "src":
             self.sources.cycle(1 if delta > 0 else -1)
@@ -1188,7 +1206,7 @@ class Instrument:
             self.punch = False
         elif ev == "randomize":
             import random
-            s = self.cur_step()
+            s = self.edit_step()
             s["x"] = [round(random.random(), 2) for _ in range(3)]
         elif ev == "layer_add":
             import copy
@@ -1196,8 +1214,14 @@ class Instrument:
                 self.layers.append(copy.deepcopy(self.cur_step()))
                 if len(self.layers) > 2:      # cap chain at 3 total
                     self.layers.pop(0)
+                self.layer_focus = 0
         elif ev == "layer_clear":
             self.layers = []
+            self.layer_focus = 0
+        elif ev == "layer_focus_up":
+            self.layer_focus = min(self.layer_focus + 1, len(self.chain()) - 1)
+        elif ev == "layer_focus_down":
+            self.layer_focus = max(0, self.layer_focus - 1)
         elif ev == "mode_toggle":
             if self.deck:
                 self.deck_mode = not self.deck_mode
@@ -1208,11 +1232,13 @@ class Instrument:
             self.frozen = not self.frozen
         elif ev == "lfo":
             if self.param_row < 4:  # any x param or speed ("auto")
-                s = self.cur_step()
+                s = self.edit_step()
+                s.setdefault("lfo", [False] * 4)
                 s["lfo"][self.param_row] = not s["lfo"][self.param_row]
         elif ev in ("lfoband_up", "lfoband_down"):
             if self.param_row < 4:
-                s = self.cur_step()
+                s = self.edit_step()
+                s.setdefault("lfo", [False] * 4)
                 lb = s.setdefault("lfoband", [3, 3, 3, 3])
                 while len(lb) < 4:
                     lb.append(3)
@@ -1318,13 +1344,22 @@ class Instrument:
             return r.high
         return r.level  # 3 = ALL frequencies
 
+    def _step_summary(self, s):
+        lfo = "~" if any(s.get("lfo", [])) else ""
+        return "%s%s %.2f %.2f %.2f spd %.2f" % (
+            s["shader"], lfo, s["x"][0], s["x"][1], s["x"][2], s["speed"])
+
     def update_overlay(self, step):
+        chain = self.chain()
+        focused = self.edit_step()
+        step = focused
         names = self._param_names(step) + ["spd"]
         parts = []
         lb = step.get("lfoband", [3, 3, 3, 3])
+        lf = step.get("lfo", [False] * 4)
         for i in range(4):
             label = names[i]
-            if step["lfo"][i]:
+            if lf[i]:
                 b = lb[i] if i < len(lb) else 3
                 label += "~" + ("" if b == 3 else "LMH"[b])
             val = step["x"][i] if i < 3 else step["speed"]
@@ -1341,17 +1376,25 @@ class Instrument:
             flags += {1: "  MIX", 2: "  REC", 3: "  LIVE"}.get(self.output_idx, "")
         if self.deck and self.deck_mode:
             pos = "D%d/%d" % (self.deck_idx + 1, len(self.deck))
-            nlayers = len(step.get("layers", []))
         else:
             pos = "%d/%d" % (self.step_idx + 1, len(self.playlist["steps"]))
-            nlayers = len(self.layers)
-        shader = step["shader"] + ("+%d" % nlayers if nlayers else "")
-        line1 = "%s %s  %s%s" % (pos, shader, "  ".join(parts), flags)
-        line2 = "Select: what do these knobs do?"
-        key = (line1, line2)
+        fidx = len(chain) - 1 - min(self.layer_focus, len(chain) - 1)
+        shader = step["shader"]
+        if len(chain) > 1:
+            shader += "  (layer %d/%d)" % (fidx + 1, len(chain))
+        lines = ["%s %s  %s%s" % (pos, shader, "  ".join(parts), flags)]
+        for li in range(len(chain) - 1, -1, -1):   # top first, then deeper
+            if chain[li] is focused:
+                continue
+            tag = "top" if li == len(chain) - 1 else "L%d" % (li + 1)
+            lines.append("  %s: %s" % (tag, self._step_summary(chain[li])))
+        lines.append("Select: what do these knobs do?"
+                     + ("   Sel+^v: pick layer" if len(chain) > 1 else ""))
+        key = tuple(lines)
+        self._ov_used = 26 + 15 * (len(lines) - 1) + 6
         if key != self._overlay_key:
             self._overlay_key = key
-            raw = self.plat.text_image([line1, line2], self.w, self.strip_h)
+            raw = self.plat.text_image(lines, self.w, self.strip_h)
             upload_raw(self.overlay_tex, self.w, self.strip_h, raw)
 
     def update_menu(self):
@@ -1435,12 +1478,13 @@ class Instrument:
         else:
             chain = self.layers + [step]
         tex_in = src
+        target = self.edit_step()
         for li, ls in enumerate(chain):
             prog = self.programs.get(ls["shader"])
             if prog is None:
                 prog = list(self.programs.values())[0]
             prog.use()
-            self.set_common(prog, ls, top=(li == len(chain) - 1))
+            self.set_common(prog, ls, top=(ls is target))
             prog.set_tex("u_tex0", 0, tex_in)
             prog.set_tex("u_tex1", 1, self.prev_tex)
             prog.set_tex("u_atlas", 2, self.atlas)
@@ -1479,9 +1523,9 @@ class Instrument:
         if self.overlay_mode != 2 or show_toast:
             if self.overlay_mode == 0 or show_toast:
                 self.update_overlay(step)
-                strip, tex = self.strip_h, self.overlay_tex
+                strip, tex = self._ov_used, self.overlay_tex
             else:
-                self.update_help(step)
+                self.update_help(self.edit_step())
                 strip, tex = self.help_h, self.help_tex
             GL.glEnable(GL.GL_SCISSOR_TEST)
             GL.glScissor(0, 0, self.w, strip)
