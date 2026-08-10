@@ -1,4 +1,4 @@
-# HVS-80 Pocket Computer
+# HVS-80
 
 **A pocket computer for video effects.** The **HVS-80** — **H**andheld
 **V**ideo **S**ynth, with a model number tipping its hat to the legendary
@@ -110,7 +110,7 @@ Zero 2 W; the project is moving to the CM4, see the note above.)
    ssh pi@retropie.local 'sudo reboot'
    ```
 
-   An **HVS-100** shelf appears in EmulationStation with
+   An **HVS-80** shelf appears in EmulationStation with
    starter carts: *Video Synth Demo*, *Effects Lab*, deck builders, and
    the streaming outputs.
 

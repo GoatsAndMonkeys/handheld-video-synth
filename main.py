@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HVS-80 Pocket Computer (Handheld Video Synth) — a pocket computer for video effects.
+"""HVS-80 (Handheld Video Synth) — a pocket computer for video effects.
 
 Runs on desktop (pygame + OpenGL 2.1) and on the GPi Case's Pi Zero 2W
 (dispmanx EGL + GLES2 via pi_backend). Shaders speak the recurBOY/glslViewer
@@ -50,7 +50,7 @@ class DesktopPlatform:
         pygame.init()
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 2)
         pygame.display.set_mode((w, h), pygame.OPENGL | pygame.DOUBLEBUF)
-        pygame.display.set_caption("HVS-80 Pocket Computer")
+        pygame.display.set_caption("HVS-80")
         pygame.key.set_repeat(230, 35)
         for i in range(pygame.joystick.get_count()):
             pygame.joystick.Joystick(i).init()
@@ -1672,7 +1672,7 @@ def parse_size(s):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="HVS-80 Pocket Computer (Handheld Video Synth)")
+    ap = argparse.ArgumentParser(description="HVS-80 (Handheld Video Synth)")
     ap.add_argument("--pack", default="packs/demo")
     ap.add_argument("--playlist", default="set1")
     ap.add_argument("--rom", default=None,

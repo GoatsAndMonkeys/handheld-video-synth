@@ -1,6 +1,6 @@
 # Credits & license compatibility
 
-The HVS-80 Pocket Computer (Handheld Video Synth) is GPL-3.0. This file records every piece of outside
+The HVS-80 (Handheld Video Synth) is GPL-3.0. This file records every piece of outside
 work the project uses, how it is used, and why the licensing is compatible.
 
 ## Code and shaders shipped in this repository
