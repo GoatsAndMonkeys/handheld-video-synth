@@ -1,6 +1,6 @@
 # The full SD card guide
 
-From a blank SD card to a working Handheld Video Synth — and then to a
+From a blank SD card to a working HVS-80 — and then to a
 single `.img` file anyone can flash and slot into the device. No prior
 Raspberry Pi experience assumed.
 
@@ -14,7 +14,7 @@ If a release image is available on the
 2. Add your WiFi: put a `wpa_supplicant.conf` on the card's `boot`
    partition (template in step 2 below).
 3. Slot the card, boot — first boot auto-expands, then lands on the
-   Handheld Video Synth shelf. Load your playlists with
+   HVS-80 shelf. Load your playlists with
    `ytget.py ... --push` (step 5 below).
 
 That's the whole install. Everything below is **Option B: building the
@@ -102,7 +102,7 @@ Eject the card.
    hold any button and follow the prompts (map d-pad, A/B/X/Y, Start,
    Select, L/R; skip the rest with any held button).
 
-## 4. Install Handheld Video Synth
+## 4. Install the HVS-80
 
 From your computer, inside the cloned repo:
 
@@ -115,7 +115,7 @@ ssh pi@retropie.local 'bash /home/pi/handheld-video-synth/pi/install.sh'
 The installer pulls python dependencies from piwheels (note: `apt install`
 does **not** work on this OS anymore — Buster is end-of-life; the
 installer accounts for this), downloads a static ffmpeg, registers the
-**Handheld Video Synth** shelf in EmulationStation, and copies the starter
+**HVS-80** shelf in EmulationStation, and copies the starter
 carts. Reboot:
 
 ```sh
@@ -137,7 +137,7 @@ playlist. Private playlists: make them unlisted, or add
 
 ## 6. Verify
 
-On the device: EmulationStation → **Handheld Video Synth** shelf →
+On the device: EmulationStation → **HVS-80** shelf →
 *Video Synth Demo*. You should see the plasma with the control bar.
 Press **Start** → Video source → pick your playlist → pick a video: it
 plays with sound, effects on top. Press Select once for the help panel —
@@ -191,7 +191,7 @@ logs, then shrinks (requires Docker):
 
 ```sh
 tools/clean_image.sh hvs-cart.img
-gh release create v1.0 hvs-cart.img.gz -t "Handheld Video Synth v1.0" \
+gh release create v1.0 hvs-cart.img.gz -t "HVS-80 Pocket Computer v1.0" \
    -n "Flash, add wifi, boot. See docs/SD_CARD_GUIDE.md Option A."
 ```
 

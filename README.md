@@ -1,6 +1,8 @@
-# Handheld Video Synth
+# HVS-80 Pocket Computer
 
-**A pocket computer for video effects.** Handheld Video Synth turns a Retroflag GPi Case
+**A pocket computer for video effects.** The **HVS-80** — **H**andheld
+**V**ideo **S**ynth, with a model number tipping its hat to the legendary
+TRS-80 — turns a Retroflag GPi Case
 (currently the Raspberry Pi Zero 2 W — alpha hardware, see note below)
 into a handheld video effects console: it plays video
 (YouTube pulls, camera, generative), melts it through a library of live GLSL
@@ -108,7 +110,7 @@ Zero 2 W; the project is moving to the CM4, see the note above.)
    ssh pi@retropie.local 'sudo reboot'
    ```
 
-   A **Handheld Video Synth** shelf appears in EmulationStation with
+   An **HVS-80** shelf appears in EmulationStation with
    starter carts: *Video Synth Demo*, *Effects Lab*, deck builders, and
    the streaming outputs.
 

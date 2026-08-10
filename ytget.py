@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pull YouTube videos (single or playlist) into a Handheld Video Synth pack.
+"""Pull YouTube videos (single or playlist) into an HVS-80 pack.
 
 Usage:
     .venv/bin/python ytget.py <url> [--name clipname] [--pack packs/demo]
@@ -24,7 +24,7 @@ def slug(title):
     return re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")[:32] or "clip"
 
 
-def grab_one(url, name, clips_dir, max_seconds):
+def grab_one(url, name, clips_dir, max_seconds, res=240):
     with tempfile.TemporaryDirectory() as tmp:
         tmp_file = os.path.join(tmp, "dl.mp4")
         subprocess.run(
@@ -41,8 +41,10 @@ def grab_one(url, name, clips_dir, max_seconds):
         ff = ["ffmpeg", "-y", "-loglevel", "error", "-i", tmp_file]
         if max_seconds:
             ff += ["-t", str(max_seconds)]
+        cw, ch = (640, 480) if res == 480 else (320, 240)
         ff += ["-vf",
-               "scale=320:240:force_original_aspect_ratio=increase,crop=320:240",
+               "scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d"
+               % (cw, ch, cw, ch),
                "-r", "30", "-c:a", "aac", "-b:a", "96k", "-ar", "44100",
                "-pix_fmt", "yuv420p", out]
         subprocess.run(ff, check=True)
@@ -63,6 +65,9 @@ def main():
     ap.add_argument("--cookies", default=None, metavar="BROWSER",
                     help="use browser cookies for private playlists "
                          "(e.g. chrome, safari, firefox)")
+    ap.add_argument("--res", type=int, choices=[240, 480], default=240,
+                    help="stored clip height: 240 (Pi-friendly, default) "
+                         "or 480 (desktop / fullres experiments)")
     args = ap.parse_args()
     global YT_EXTRA
     YT_EXTRA = ["--cookies-from-browser", args.cookies] if args.cookies else []
@@ -89,11 +94,11 @@ def main():
             vid, title = parts[0], parts[1] if len(parts) > 1 else parts[0]
             u = "https://www.youtube.com/watch?v=" + vid
             try:
-                outs.append(grab_one(u, slug(title), clips_dir, args.max_seconds))
+                outs.append(grab_one(u, slug(title), clips_dir, args.max_seconds, args.res))
             except subprocess.CalledProcessError as exc:
                 print("skipping %s: %s" % (title, exc))
     else:
-        outs.append(grab_one(args.url, args.name, clips_dir, args.max_seconds))
+        outs.append(grab_one(args.url, args.name, clips_dir, args.max_seconds, args.res))
 
     if args.push and outs:
         src_root = os.path.join(ROOT, args.pack, "clips")

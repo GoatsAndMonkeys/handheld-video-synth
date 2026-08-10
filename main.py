@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Handheld Video Synth — a pocket computer for video effects.
+"""HVS-80 Pocket Computer (Handheld Video Synth) — a pocket computer for video effects.
 
 Runs on desktop (pygame + OpenGL 2.1) and on the GPi Case's Pi Zero 2W
 (dispmanx EGL + GLES2 via pi_backend). Shaders speak the recurBOY/glslViewer
@@ -50,7 +50,7 @@ class DesktopPlatform:
         pygame.init()
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 2)
         pygame.display.set_mode((w, h), pygame.OPENGL | pygame.DOUBLEBUF)
-        pygame.display.set_caption("Handheld Video Synth")
+        pygame.display.set_caption("HVS-80 Pocket Computer")
         pygame.key.set_repeat(230, 35)
         for i in range(pygame.joystick.get_count()):
             pygame.joystick.Joystick(i).init()
@@ -654,9 +654,14 @@ class _FFClip:
 class Sources:
     """Slots: gen (shader pattern), one per clip in the pack, cam (webcam)."""
 
-    def __init__(self, w, h, clips_dir):
-        # decode/capture at half res; GPU upscaling is free and lo-fi is the brand
-        self.w, self.h = max(320, w // 2), max(240, h // 2)
+    def __init__(self, w, h, clips_dir, fullres=False):
+        # default: decode/capture at half res — GPU upscaling is free, lo-fi
+        # is the brand, and half res is what keeps the Zero 2W near 20fps.
+        # fullres decodes at engine res (desktop default; Pi experiment).
+        if fullres:
+            self.w, self.h = w, h
+        else:
+            self.w, self.h = max(320, w // 2), max(240, h // 2)
         self.clips_dir = clips_dir
         self.tex = make_texture(self.w, self.h)
         self._cap = None
@@ -892,8 +897,10 @@ class Instrument:
             except Exception as exc:
                 print("deck load failed:", exc)
 
+        self.fullres = bool(getattr(args, "fullres", False))
         self.sources = Sources(self.w, self.h,
-                               os.path.join(self.pack_dir, "clips"))
+                               os.path.join(self.pack_dir, "clips"),
+                               self.fullres)
         if args.source:
             self.sources.select(args.source)
         self.radio = RadioAudio(_find_ffmpeg())
@@ -1011,7 +1018,8 @@ class Instrument:
                 self.overlay_prog = Program(os.path.join(
                     self.pack_dir, "shaders", "_overlay.frag"))
                 self.sources = Sources(self.w, self.h,
-                                       os.path.join(self.pack_dir, "clips"))
+                                       os.path.join(self.pack_dir, "clips"),
+                                       self.fullres)
                 self.deck_path = os.path.join(self.pack_dir, "playlists",
                                               "deck.json")
                 self.deck = []
@@ -1664,7 +1672,7 @@ def parse_size(s):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="video synth boy / Handheld Video Synth")
+    ap = argparse.ArgumentParser(description="HVS-80 Pocket Computer (Handheld Video Synth)")
     ap.add_argument("--pack", default="packs/demo")
     ap.add_argument("--playlist", default="set1")
     ap.add_argument("--rom", default=None,
@@ -1689,6 +1697,9 @@ def main():
                     help="start with the loader menu open (testing)")
     ap.add_argument("--deckmode", choices=["build", "play"], default=None,
                     help="force deck mode at boot")
+    ap.add_argument("--fullres", action="store_true",
+                    help="decode video sources at full engine res "
+                         "(always on for desktop; Pi experiment)")
     args = ap.parse_args()
 
     if args.rom:
@@ -1703,6 +1714,10 @@ def main():
             args.loader = True
         if rom.get("deck") in ("build", "play"):
             args.deckmode = rom["deck"]
+        if rom.get("fullres"):
+            args.fullres = True
+    if not IS_PI:
+        args.fullres = True     # desktop always has the headroom
 
     if IS_PI:
         plat = PiPlatform()

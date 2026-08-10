@@ -1,5 +1,5 @@
 #!/bin/bash
-# Handheld Video Synth installer — run ON the Pi (RetroPie). Idempotent.
+# HVS-80 installer — run ON the Pi (RetroPie). Idempotent.
 # Installs python deps (piwheels), a static ffmpeg, the EmulationStation
 # system, the launcher, and the starter carts.
 set -e
@@ -46,7 +46,7 @@ import sys
 path = sys.argv[1]
 entry = """  <system>
     <name>videosynth</name>
-    <fullname>Handheld Video Synth</fullname>
+    <fullname>HVS-80 Pocket Computer</fullname>
     <path>/home/pi/RetroPie/roms/videosynth</path>
     <extension>.vsb .VSB</extension>
     <command>/home/pi/handheld-video-synth/launch.sh %ROM%</command>
@@ -59,8 +59,8 @@ with open(path) as f:
 cfg = cfg.replace("</systemList>", entry)
 with open(path, "w") as f:
     f.write(cfg)
-print("Handheld Video Synth system registered (backup at %s.bak-videosynth)" % path)
+print("HVS-80 system registered (backup at %s.bak-videosynth)" % path)
 EOF
 fi
 
-echo "== done — restart EmulationStation (or reboot) to see the Handheld Video Synth shelf =="
+echo "== done — restart EmulationStation (or reboot) to see the HVS-80 shelf =="
