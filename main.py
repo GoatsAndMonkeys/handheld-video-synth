@@ -880,23 +880,13 @@ class Instrument:
         self.layers = []      # locked background effects (Sel+A stacks)
         self.layer_focus = 0  # 0 = top of chain; Sel+Up/Down digs deeper
 
-        # deck: user-saved full scenes (effect+params+video+audio), L/R
-        # walks it when non-empty; persisted per pack
-        self.deck_path = os.path.join(self.pack_dir, "playlists", "deck.json")
-        self.deck = []
+        # decks: named lists of user-saved effect scenes; L/R walks the
+        # active one in play mode; persisted per pack (decks.json)
         self.deck_idx = 0
         self.deck_mode = False   # False = build (L/R browses effects),
                                  # True = play (L/R walks saved scenes)
-        if os.path.exists(self.deck_path):
-            try:
-                with open(self.deck_path) as f:
-                    self.deck = json.load(f).get("steps", [])
-                for sc in self.deck:
-                    sc.setdefault("lfo", [False] * 4)
-                    while len(sc["lfo"]) < 4:
-                        sc["lfo"].append(False)
-            except Exception as exc:
-                print("deck load failed:", exc)
+        self.kb = None           # on-screen keyboard state (menu name editor)
+        self._load_decks()
 
         if getattr(args, "srcres", None):
             self.src_dims = args.srcres
@@ -937,7 +927,7 @@ class Instrument:
         self.atlas = make_texture(aw, ah, atlas_raw)
         self.bayer = make_bayer_texture()
 
-        self.strip_h = 76        # tall enough for 3 layer rows + hint
+        self.strip_h = 108       # header + 3 layer rows + hint
         self._ov_used = 44
         self.help_h = 196
         self.overlay_tex = make_texture(self.w, self.strip_h)
@@ -1026,16 +1016,8 @@ class Instrument:
                 self.sources = Sources(self.w, self.h,
                                        os.path.join(self.pack_dir, "clips"),
                                        self.src_dims)
-                self.deck_path = os.path.join(self.pack_dir, "playlists",
-                                              "deck.json")
-                self.deck = []
                 self.deck_idx = 0
-                if os.path.exists(self.deck_path):
-                    try:
-                        with open(self.deck_path) as f:
-                            self.deck = json.load(f).get("steps", [])
-                    except Exception:
-                        pass
+                self._load_decks()
             for step in self.playlist["steps"]:
                 self._ensure_program(step["shader"])
         except Exception as exc:
@@ -1043,9 +1025,49 @@ class Instrument:
             (self.pack_rel, self.pack_dir, self.playlist,
              self.playlist_name, self.step_idx) = old
 
+    def _load_decks(self):
+        """decks.json: {"active": i, "decks": [{"name", "scenes"}]}.
+        Migrates the old single-deck deck.json on first sight."""
+        self.decks_path = os.path.join(self.pack_dir, "playlists",
+                                       "decks.json")
+        old_path = os.path.join(self.pack_dir, "playlists", "deck.json")
+        self.decks = [{"name": "DECK 1", "scenes": []}]
+        self.deck_sel = 0
+        try:
+            if os.path.exists(self.decks_path):
+                with open(self.decks_path) as f:
+                    d = json.load(f)
+                if d.get("decks"):
+                    self.decks = d["decks"]
+                self.deck_sel = min(d.get("active", 0), len(self.decks) - 1)
+            elif os.path.exists(old_path):
+                with open(old_path) as f:
+                    steps = json.load(f).get("steps", [])
+                if steps:
+                    self.decks = [{"name": "DECK 1", "scenes": steps}]
+        except Exception as exc:
+            print("deck load failed:", exc)
+        for dk in self.decks:
+            dk.setdefault("name", "DECK")
+            dk.setdefault("scenes", [])
+            for sc in dk["scenes"]:
+                sc.setdefault("lfo", [False] * 4)
+                while len(sc["lfo"]) < 4:
+                    sc["lfo"].append(False)
+
+    @property
+    def deck(self):
+        """Scenes of the active deck — legacy alias the engine performs on."""
+        return self.decks[self.deck_sel]["scenes"]
+
+    @deck.setter
+    def deck(self, scenes):
+        self.decks[self.deck_sel]["scenes"] = list(scenes)
+
     def _save_deck(self):
-        with open(self.deck_path, "w") as f:
-            json.dump({"name": "deck", "steps": self.deck}, f, indent=2)
+        with open(self.decks_path, "w") as f:
+            json.dump({"active": self.deck_sel, "decks": self.decks},
+                      f, indent=2)
 
     def step(self, delta):
         self.layer_focus = 0
@@ -1074,7 +1096,7 @@ class Instrument:
 
     MENU_CATS = [("video", "Video source"), ("audio", "Audio source"),
                  ("output", "Output"), ("sets", "FX deck"),
-                 ("deck", "My deck")]
+                 ("deck", "My decks")]
 
     def _cat_current(self, key):
         if key == "video":
@@ -1085,8 +1107,9 @@ class Instrument:
             return ["screen", "mixer", "recording", "LIVE"][self.output_idx]
         if key == "sets":
             return self.playlist_name
-        return "%d scenes%s" % (len(self.deck),
-                                "  PLAYING" if self.deck_mode else "")
+        return "%s (%d)%s" % (self.decks[self.deck_sel]["name"],
+                              len(self.deck),
+                              "  PLAYING" if self.deck_mode else "")
 
     def _menu_rows(self):
         if self.menu_level == 0:
@@ -1129,21 +1152,31 @@ class Instrument:
                           and not self.deck)
                 rows.append(("set", i, "%s  (%s)" %
                              (name, os.path.basename(pack)), active))
-        else:  # deck
+        else:  # deck manager
+            if self.menu_level == 2:      # inside one deck (menu_col = index)
+                di = self.menu_col
+                for si, sc in enumerate(self.decks[di]["scenes"]):
+                    lfo = "~" if any(sc.get("lfo", [])) else ""
+                    if sc.get("name"):
+                        body = "%s  (%s%s)" % (sc["name"], sc["shader"], lfo)
+                    else:
+                        body = "%s%s  [%.2f %.2f %.2f]" % (
+                            sc["shader"], lfo,
+                            sc["x"][0], sc["x"][1], sc["x"][2])
+                    rows.append(("deck", (di, si), "%d  %s" % (si + 1, body),
+                                 di == self.deck_sel and si == self.deck_idx))
+                rows.append(("deckadd", di, "+ save current scene here",
+                             False))
+                return rows
             if self.deck:
                 mode = ("mode: PLAY deck  (L/R = scenes)" if self.deck_mode
                         else "mode: BUILD  (L/R = effects)")
                 rows.append(("deckmode", None, mode, self.deck_mode))
-            for i, sc in enumerate(self.deck):
-                lfo = "~" if any(sc.get("lfo", [])) else ""
-                label = "%d  %s%s  [%.2f %.2f %.2f]" % (
-                    i + 1, sc["shader"], lfo,
-                    sc["x"][0], sc["x"][1], sc["x"][2])
-                rows.append(("deck", i, label,
-                             bool(self.deck) and i == self.deck_idx))
-            rows.append(("deckadd", None, "+ save current scene", False))
-            if self.deck:
-                rows.append(("deckclear", None, "x clear deck", False))
+            for di, dk in enumerate(self.decks):
+                rows.append(("deckopen", di, "%s  (%d scenes)" %
+                             (dk["name"], len(dk["scenes"])),
+                             di == self.deck_sel))
+            rows.append(("decknew", None, "+ new deck", False))
         return rows
 
     def _menu_move(self, delta):
@@ -1157,7 +1190,80 @@ class Instrument:
                 self.menu_idx = i
                 return
 
+    KB_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
+
+    def _kb_open(self, target, text):
+        self.kb = {"target": target,
+                   "text": list((text or "A").upper()[:16]), "pos": 0}
+
+    def _kb_handle(self, ev):
+        kb, t, p = self.kb, self.kb["text"], self.kb["pos"]
+        if ev in ("up", "down"):
+            cur = t[p] if t[p] in self.KB_CHARS else "A"
+            step = 1 if ev == "up" else -1
+            t[p] = self.KB_CHARS[(self.KB_CHARS.index(cur) + step)
+                                 % len(self.KB_CHARS)]
+        elif ev == "left":
+            kb["pos"] = max(0, p - 1)
+        elif ev == "right":
+            if p == len(t) - 1 and len(t) < 16:
+                t.append("A")
+            kb["pos"] = min(len(t) - 1, p + 1)
+        elif ev == "freeze":               # Y = delete character
+            if len(t) > 1:
+                del t[p]
+                kb["pos"] = min(p, len(t) - 1)
+        elif ev == "punch_on":             # A = save name
+            name = "".join(t).strip() or "UNNAMED"
+            tgt = kb["target"]
+            if tgt[0] == "deck":
+                self.decks[tgt[1]]["name"] = name
+            else:
+                self.decks[tgt[1]]["scenes"][tgt[2]]["name"] = name
+            self._save_deck()
+            self.kb = None
+        elif ev in ("randomize", "src"):   # B / Start = cancel
+            self.kb = None
+        return True
+
     def _menu_handle(self, ev):
+        if self.kb:
+            return self._kb_handle(ev)
+        in_decks = self.MENU_CATS[self.menu_cat][0] == "deck"
+        if in_decks and self.menu_level > 0 and ev in (
+                "lfo", "layer_focus_up", "layer_focus_down", "prev", "next"):
+            rows = self._menu_rows()
+            row = rows[self.menu_idx] if self.menu_idx < len(rows) else None
+            if ev == "lfo" and row:        # X = rename deck / scene
+                if row[0] == "deckopen":
+                    self._kb_open(("deck", row[1]),
+                                  self.decks[row[1]]["name"])
+                elif row[0] == "deck":
+                    di, si = row[1]
+                    sc = self.decks[di]["scenes"][si]
+                    self._kb_open(("scene", di, si),
+                                  sc.get("name") or sc["shader"])
+            elif row and row[0] == "deck":
+                di, si = row[1]
+                scenes = self.decks[di]["scenes"]
+                if ev in ("layer_focus_up", "layer_focus_down"):
+                    sj = si - 1 if ev == "layer_focus_up" else si + 1
+                    if 0 <= sj < len(scenes):   # Sel+^v = move scene
+                        scenes[si], scenes[sj] = scenes[sj], scenes[si]
+                        if di == self.deck_sel:
+                            if self.deck_idx == si:
+                                self.deck_idx = sj
+                            elif self.deck_idx == sj:
+                                self.deck_idx = si
+                        self.menu_idx += sj - si
+                        self._save_deck()
+                elif ev in ("prev", "next") and len(self.decks) > 1:
+                    import copy                  # L/R = copy to other deck
+                    dj = (di + (1 if ev == "next" else -1)) % len(self.decks)
+                    self.decks[dj]["scenes"].append(
+                        copy.deepcopy(scenes[si]))
+                    self._save_deck()
+            return True
         if ev == "up":
             self._menu_move(-1)
         elif ev == "down":
@@ -1194,46 +1300,76 @@ class Instrument:
                     self.load_set(sets[i][0], sets[i][1])
             elif kind == "deckmode":
                 self.deck_mode = not self.deck_mode
+            elif kind == "deckopen":
+                self.menu_level = 2
+                self.menu_col = i          # i = deck index here
+                self.menu_idx = 0
+            elif kind == "decknew":
+                di = len(self.decks)
+                self.decks.append({"name": "DECK %d" % (di + 1),
+                                   "scenes": []})
+                self._save_deck()
+                self._kb_open(("deck", di), self.decks[di]["name"])
             elif kind == "deck":
-                self.deck_idx = i
+                di, si = i
+                self.deck_sel = di
+                self.deck_idx = si
                 self.deck_mode = True    # picking a scene = play it
-                self._ensure_program(self.deck[i]["shader"])
+                self._ensure_program(self.deck[si]["shader"])
+                self._save_deck()        # persists which deck is active
             elif kind == "deckadd":
                 import copy
                 sc = copy.deepcopy(self.cur_step())
                 sc.pop("video", None)    # scenes are effects only —
                 sc.pop("aud", None)      # video/audio stay live choices
+                sc.pop("name", None)     # name belongs to the original
                 if self.layers and not (self.deck and self.deck_mode):
                     sc["layers"] = copy.deepcopy(self.layers)
-                self.deck.append(sc)
-                self.deck_idx = len(self.deck) - 1
+                self.decks[i]["scenes"].append(sc)
+                if i == self.deck_sel:
+                    self.deck_idx = len(self.deck) - 1
                 self._save_deck()
-            elif kind == "deckclear":
-                self.deck = []
-                self.deck_idx = 0
-                self.deck_mode = False
-                self._save_deck()
-        elif ev == "freeze":  # Y in the deck list = delete scene
+        elif ev == "freeze":  # Y = delete deck (level 1) / scene (level 2)
             rows = self._menu_rows()
-            if (self.menu_level == 1 and rows and
-                    self.menu_idx < len(rows) and
-                    rows[self.menu_idx][0] == "deck"):
-                i = rows[self.menu_idx][1]
-                del self.deck[i]
+            row = (rows[self.menu_idx]
+                   if rows and self.menu_idx < len(rows) else None)
+            if row and row[0] == "deckopen":
+                di = row[1]
+                if len(self.decks) > 1:
+                    del self.decks[di]
+                    if self.deck_sel >= len(self.decks):
+                        self.deck_sel = len(self.decks) - 1
+                    elif self.deck_sel > di:
+                        self.deck_sel -= 1
+                else:
+                    self.decks[di]["scenes"] = []   # last deck: just empty it
+                self.deck_idx = 0
                 if not self.deck:
                     self.deck_mode = False
-                    self.deck_idx = 0
-                else:
-                    self.deck_idx = min(self.deck_idx, len(self.deck) - 1)
+                self._save_deck()
+                self.menu_idx = max(0, self.menu_idx - 1)
+            elif row and row[0] == "deck":
+                di, si = row[1]
+                del self.decks[di]["scenes"][si]
+                if di == self.deck_sel:
+                    if not self.deck:
+                        self.deck_mode = False
+                        self.deck_idx = 0
+                    else:
+                        self.deck_idx = min(self.deck_idx,
+                                            len(self.deck) - 1)
                 self._save_deck()
                 self.menu_idx = max(0, self.menu_idx - 1)
         elif ev == "randomize":  # B = back / close
             if self.menu_level == 2:
                 self.menu_level = 1
+                back_kind = ("deckopen"
+                             if self.MENU_CATS[self.menu_cat][0] == "deck"
+                             else "vcol")
                 rows = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(rows)
-                     if r[0] == "vcol" and r[1] == self.menu_col), 0)
+                     if r[0] == back_kind and r[1] == self.menu_col), 0)
             elif self.menu_level == 1:
                 self.menu_level = 0
                 self.menu_idx = self.menu_cat
@@ -1293,10 +1429,10 @@ class Instrument:
         elif ev == "layer_clear":
             self.layers = []
             self.layer_focus = 0
-        elif ev == "layer_focus_up":
-            self.layer_focus = min(self.layer_focus + 1, len(self.chain()) - 1)
-        elif ev == "layer_focus_down":
+        elif ev == "layer_focus_up":     # up = toward the top layer,
             self.layer_focus = max(0, self.layer_focus - 1)
+        elif ev == "layer_focus_down":   # down = deeper — matches the rows
+            self.layer_focus = min(self.layer_focus + 1, len(self.chain()) - 1)
         elif ev == "mode_toggle":
             if self.deck:
                 self.deck_mode = not self.deck_mode
@@ -1480,11 +1616,14 @@ class Instrument:
         if len(chain) > 1:
             shader += "  (layer %d/%d)" % (fidx + 1, len(chain))
         lines = ["%s %s  %s%s" % (pos, shader, "  ".join(parts), flags)]
-        for li in range(len(chain) - 1, -1, -1):   # top first, then deeper
-            if chain[li] is focused:
-                continue
-            tag = "top" if li == len(chain) - 1 else "L%d" % (li + 1)
-            lines.append("  %s: %s" % (tag, self._step_summary(chain[li])))
+        if len(chain) > 1:
+            # screen order = chain order: top layer first, then deeper.
+            # the focused layer sits in its real position, marked >
+            for li in range(len(chain) - 1, -1, -1):
+                tag = "top" if li == len(chain) - 1 else "L%d" % (li + 1)
+                mark = ">" if chain[li] is focused else " "
+                lines.append("%s %s: %s" % (mark, tag,
+                                            self._step_summary(chain[li])))
         lines.append("Select: what do these knobs do?"
                      + ("   Sel+^v: pick layer" if len(chain) > 1 else ""))
         key = tuple(lines)
@@ -1495,17 +1634,34 @@ class Instrument:
             upload_raw(self.overlay_tex, self.w, self.strip_h, raw)
 
     def update_menu(self):
+        if self.kb:
+            disp = "".join("[%s]" % c if i == self.kb["pos"] else c
+                           for i, c in enumerate(self.kb["text"]))
+            lines = ["NAME IT   ^v: letter   </>: cursor   Y: delete",
+                     "", "   %s" % disp, "",
+                     "A: save   B: cancel"]
+            key = tuple(lines)
+            if key != self._menu_key:
+                self._menu_key = key
+                raw = self.plat.text_image(lines, self.w, self.menu_h)
+                upload_raw(self.menu_tex, self.w, self.menu_h, raw)
+            return
+        in_decks = self.MENU_CATS[self.menu_cat][0] == "deck"
         rows = self._menu_rows()
         self.menu_idx = min(self.menu_idx, max(0, len(rows) - 1))
         max_rows = 18
         top = max(0, min(self.menu_idx - max_rows // 2, len(rows) - max_rows))
         if self.menu_level == 0:
             lines = ["LOADER   A: open   Start: close"]
+        elif self.menu_level == 2 and in_decks:
+            lines = ["%s   A: play  X: name  Y: del  Sel+^v: move  "
+                     "L/R: copy>deck"
+                     % self.decks[self.menu_col]["name"]]
         elif self.menu_level == 2:
             lines = ["%s   A: play   B: back   Start: close"
                      % str(self.menu_col).upper()]
-        elif self.MENU_CATS[self.menu_cat][0] == "deck":
-            lines = ["MY DECK   A: play   Y: delete   B: back   Start: close"]
+        elif in_decks:
+            lines = ["MY DECKS   A: open   X: rename   Y: delete   B: back"]
         else:
             lines = ["%s   A: apply   B: back   Start: close"
                      % self.MENU_CATS[self.menu_cat][1].upper()]

@@ -138,7 +138,7 @@ playlist. Private playlists: make them unlisted, or add
 ## 6. Verify
 
 On the device: EmulationStation → **HVS-80** shelf →
-*HVS-80 Demo*. You should see the plasma with the control bar.
+*HVS-80*. You should see the plasma with the control bar.
 Press **Start** → Video source → pick your playlist → pick a video: it
 plays with sound, effects on top. Press Select once for the help panel —
 every control is documented on-screen.

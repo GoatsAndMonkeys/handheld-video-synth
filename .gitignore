@@ -5,3 +5,4 @@ shots/
 stream.json
 packs/*/playlists/deck.json
 packs/*/clips/*.mp4
+packs/*/playlists/decks.json

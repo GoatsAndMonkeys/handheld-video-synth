@@ -110,9 +110,10 @@ Zero 2 W; the project is moving to the CM4, see the note above.)
    ssh pi@retropie.local 'sudo reboot'
    ```
 
-   An **HVS-80** shelf appears in EmulationStation with
-   starter carts: *HVS-80 Demo*, *Effects Lab*, deck builders, and
-   the streaming outputs.
+   An **HVS-80** shelf appears in EmulationStation with two carts:
+   ***HVS-80*** (the instrument — video, audio, effects, and output
+   routing all live in the Start menu) and ***Setlist*** (boots straight
+   into scene 1 of your saved deck, gig-ready).
 
 4. **Load your videos** — from your computer, `--push` sends them over
    WiFi to the handheld:
@@ -121,7 +122,7 @@ Zero 2 W; the project is moving to the CM4, see the note above.)
    .venv/bin/python ytget.py "https://youtube.com/playlist?list=YOUR_PLAYLIST" --push
    ```
 
-5. **Play** — open *HVS-80 Demo*, press **Start** → *Video source* →
+5. **Play** — open *HVS-80*, press **Start** → *Video source* →
    your playlist. Press **Select** once for the on-screen help panel;
    the full control map is below.
 
@@ -206,7 +207,7 @@ Video source :  <playlist collections → videos, camera, plasma>
 Audio source :  no audio / video's own sound / NTS 1 / NTS 2
 Output       :  screen only / to mixer (laptop) / record to SD / go live
 FX deck      :  effect setlists from every pack (live-switchable)
-My deck      :  your saved scenes — save, play, delete (Y)
+My decks     :  named decks — build, name, reorder, copy scenes
 ```
 
 A enters/applies, B backs out, Start closes. Everything applies live —
@@ -215,10 +216,17 @@ video keeps playing behind the menu.
 ## Decks
 
 A **scene** = effect + params + LFO routing + layer stack (video/audio stay
-live choices — the same deck plays over any feed). In **BUILD** mode L/R
-browses effects while you save scenes; in **PLAY** mode L/R walks your
-saved scenes. Decks persist on the device (`playlists/deck.json` per pack).
-Carts: *Build Setlist* boots building, *Play Setlist* boots into scene 1.
+live choices — the same deck plays over any feed). You can keep **multiple
+named decks** — one per gig, one per mood. In **BUILD** mode L/R browses
+effects while you save scenes; in **PLAY** mode L/R walks the active deck's
+scenes.
+
+The *My decks* menu is the deck manager: **A** opens a deck (or plays a
+scene), **X** renames a deck or scene with the on-screen keyboard
+(d-pad picks letters, LSDJ-style), **Y** deletes, **Select+↑/↓** reorders
+scenes, and **L/R on a scene copies it into the neighboring deck**.
+Decks persist on the device (`playlists/decks.json` per pack). The
+*Setlist* cart boots straight into scene 1 of the active deck.
 
 ## Content packs
 
@@ -227,7 +235,7 @@ packs/<name>/
   pack.json          name, artist, description
   shaders/*.frag     effects (+ optional .json sidecar: param names/help)
   clips/<playlist>/  videos, one folder per collection
-  playlists/*.json   effect setlists; deck.json = the user's saved deck
+  playlists/*.json   effect setlists; decks.json = the user's named decks
 ```
 
 Pull videos from YouTube (playlists become collections automatically):

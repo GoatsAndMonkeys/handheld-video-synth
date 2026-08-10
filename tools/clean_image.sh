@@ -26,7 +26,7 @@ echo '== removing personal data =='
 find \$APP/packs/*/clips -name '*.mp4' ! -name 'testcard.mp4' -delete 2>/dev/null || true
 find \$APP/packs/*/clips -mindepth 1 -type d -empty -delete 2>/dev/null || true
 # saved decks, stream keys
-rm -f \$APP/packs/*/playlists/deck.json \$APP/stream.json
+rm -f \$APP/packs/*/playlists/deck.json \$APP/packs/*/playlists/decks.json \$APP/stream.json
 # WiFi credentials (recipients add their own via the boot partition)
 rm -f /mnt/root/etc/wpa_supplicant/wpa_supplicant.conf
 # re-enable ssh for first boot; recipients get the headless flow
