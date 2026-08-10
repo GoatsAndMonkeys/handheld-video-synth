@@ -654,12 +654,13 @@ class _FFClip:
 class Sources:
     """Slots: gen (shader pattern), one per clip in the pack, cam (webcam)."""
 
-    def __init__(self, w, h, clips_dir, fullres=False):
+    def __init__(self, w, h, clips_dir, dims=None):
         # default: decode/capture at half res — GPU upscaling is free, lo-fi
         # is the brand, and half res is what keeps the Zero 2W near 20fps.
-        # fullres decodes at engine res (desktop default; Pi experiment).
-        if fullres:
-            self.w, self.h = w, h
+        # dims overrides decode res (desktop: engine res; Pi: 480x360 is
+        # the measured ceiling — 640x480 saturates a core).
+        if dims:
+            self.w, self.h = dims
         else:
             self.w, self.h = max(320, w // 2), max(240, h // 2)
         self.clips_dir = clips_dir
@@ -897,10 +898,15 @@ class Instrument:
             except Exception as exc:
                 print("deck load failed:", exc)
 
-        self.fullres = bool(getattr(args, "fullres", False))
+        if getattr(args, "srcres", None):
+            self.src_dims = args.srcres
+        elif getattr(args, "fullres", False):
+            self.src_dims = (self.w, self.h)
+        else:
+            self.src_dims = None
         self.sources = Sources(self.w, self.h,
                                os.path.join(self.pack_dir, "clips"),
-                               self.fullres)
+                               self.src_dims)
         if args.source:
             self.sources.select(args.source)
         self.radio = RadioAudio(_find_ffmpeg())
@@ -1019,7 +1025,7 @@ class Instrument:
                     self.pack_dir, "shaders", "_overlay.frag"))
                 self.sources = Sources(self.w, self.h,
                                        os.path.join(self.pack_dir, "clips"),
-                                       self.fullres)
+                                       self.src_dims)
                 self.deck_path = os.path.join(self.pack_dir, "playlists",
                                               "deck.json")
                 self.deck = []
@@ -1699,8 +1705,11 @@ def main():
                     help="force deck mode at boot")
     ap.add_argument("--fullres", action="store_true",
                     help="decode video sources at full engine res. Always on "
-                         "for desktop. NOT viable on the Zero 2W (exhausts "
-                         "RAM and swap-thrashes); reserved for the CM4 build")
+                         "for desktop. NOT viable on the Zero 2W (saturates "
+                         "a core); reserved for the CM4 build")
+    ap.add_argument("--srcres", type=parse_size, default=None,
+                    help="explicit source decode res, e.g. 480x360 "
+                         "(the Zero 2W's measured ceiling)")
     args = ap.parse_args()
 
     if args.rom:
@@ -1717,6 +1726,8 @@ def main():
             args.deckmode = rom["deck"]
         if rom.get("fullres"):
             args.fullres = True
+        if rom.get("srcres"):
+            args.srcres = parse_size(rom["srcres"])
     if not IS_PI:
         args.fullres = True     # desktop always has the headroom
 
