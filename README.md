@@ -37,7 +37,8 @@ Case 2W running RetroPie, with the synth installed as a game shelf.
    ```
 
    (Linux: `sudo apt install python3 python3-venv ffmpeg` or your distro's
-   equivalent. Windows isn't supported natively — use WSL.)
+   equivalent. Windows: see the WSL steps below — the engine uses
+   Unix-only plumbing, so it doesn't run natively.)
 
 2. **Get the code:**
 
@@ -74,6 +75,40 @@ Case 2W running RetroPie, with the synth installed as a game shelf.
    ```
 
    Then run the synth again, press `Tab` → *Video source* → your playlist.
+
+### Windows, from zero (via WSL)
+
+The engine relies on Unix pipes, so on Windows it runs inside **WSL 2** —
+Microsoft's built-in Linux layer. Windows 11 (or an updated Windows 10)
+shows Linux windows natively, so the synth opens like any other app.
+
+1. **Install WSL** — in PowerShell *(run as administrator)*:
+
+   ```powershell
+   wsl --install
+   ```
+
+   Reboot when prompted; Ubuntu sets itself up and asks you to pick a
+   username/password on first launch.
+
+2. **Open the Ubuntu app**, then follow the **Linux** desktop steps above
+   inside it:
+
+   ```sh
+   sudo apt update && sudo apt install -y python3 python3-venv ffmpeg git
+   git clone https://github.com/GoatsAndMonkeys/handheld-video-synth
+   cd handheld-video-synth
+   python3 -m venv .venv
+   .venv/bin/pip install pygame PyOpenGL opencv-python numpy yt-dlp
+   .venv/bin/python main.py
+   ```
+
+   The synth window appears on your Windows desktop (WSLg). If it
+   doesn't, update WSL: `wsl --update` from PowerShell.
+
+3. **Installing to the handheld** works from the same Ubuntu terminal —
+   `ssh` and `rsync` are already there, so the GPi steps below apply
+   unchanged.
 
 ### Handheld (GPi Case 2W), from zero
 
