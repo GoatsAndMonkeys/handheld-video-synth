@@ -47,11 +47,20 @@
       "speed": 0.5
     },
     {
-      "shader": "netscape",
+      "shader": "websafe_y2k",
       "x": [
         0.35,
         0.8,
         0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "rgbdelay",
+      "x": [
+        0.6,
+        1.0,
+        0.25
       ],
       "speed": 0.5
     }

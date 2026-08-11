@@ -1,0 +1,8 @@
+{
+  "desc": "RGB time split — channels from different moments",
+  "params": [
+    {"name": "depth", "help": "how far back the ghosts reach (~1s max)"},
+    {"name": "split", "help": "dry video <-> full channel time-split"},
+    {"name": "wash", "help": "ghost channels bleed additively, luminous"}
+  ]
+}

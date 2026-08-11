@@ -36,7 +36,7 @@ subject to copyright:
 If any of this ever ships commercially, reach out to Andrei first as a
 courtesy — this scene runs on goodwill.
 
-`ascii`, `gameboy`, `colorize`, `feedback`, `netscape`, `matrix` (retired) and the
+`ascii`, `gameboy`, `colorize`, `feedback`, `websafe_y2k`, `matrix` (retired) and the
 engine itself are original to this project, by GoatsAndMonkeys.
 
 ## Runtime dependencies (not distributed in this repo)

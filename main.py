@@ -1904,6 +1904,8 @@ class Instrument:
         # delay tap depth follows the top effect's first param
         k = 1 + int(chain[-1]["x"][0] * (self.DELAY_N - 2) + 0.5)
         tap = self.delay_ring[(self.delay_head - k) % self.DELAY_N]
+        tap_half = self.delay_ring[(self.delay_head - max(1, k // 2))
+                                   % self.DELAY_N]
         for li, ls in enumerate(chain):
             prog = self.programs.get(ls["shader"])
             if prog is None:            # deck-scene layers load lazily here
@@ -1918,6 +1920,7 @@ class Instrument:
             prog.set_tex("u_atlas", 2, self.atlas)
             prog.set_tex("u_dither", 3, self.bayer)
             prog.set_tex("u_tex2", 4, tap)
+            prog.set_tex("u_tex3", 5, tap_half)   # half-depth ring tap
             self.draw_fullscreen()
             if li < len(chain) - 1:
                 GL.glBindTexture(GL.GL_TEXTURE_2D, self.chain_tex)
