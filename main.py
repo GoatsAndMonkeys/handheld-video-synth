@@ -511,9 +511,13 @@ class Streamer:
         import subprocess
         import fcntl
         self.frame_size = w * h * 3
+        # wallclock timestamps: frames arrive at render pace, not the
+        # nominal fps — stamping arrival time keeps audio/video clocks
+        # aligned (nominal stamps made audio drift behind and cut out)
         cmd = [ffmpeg, "-loglevel", "error",
                "-f", "rawvideo", "-pix_fmt", "rgb24",
-               "-s", "%dx%d" % (w, h), "-r", str(fps), "-i", "pipe:0"]
+               "-s", "%dx%d" % (w, h), "-r", str(fps),
+               "-use_wallclock_as_timestamps", "1", "-i", "pipe:0"]
         # audio = the exact PCM the instrument is playing (clip sound or
         # radio), fed live via push_audio — the stream carries what you hear
         self._ar, self._aw = os.pipe()
