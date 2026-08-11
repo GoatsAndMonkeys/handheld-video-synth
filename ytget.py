@@ -25,6 +25,11 @@ def slug(title):
 
 
 def grab_one(url, name, clips_dir, max_seconds, res=240):
+    if name is not None:                      # re-runs are incremental
+        done = os.path.join(clips_dir, name + ".mp4")
+        if os.path.exists(done):
+            print("already have:", done)
+            return done
     with tempfile.TemporaryDirectory() as tmp:
         tmp_file = os.path.join(tmp, "dl.mp4")
         subprocess.run(
