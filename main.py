@@ -267,6 +267,8 @@ class Program:
         if not GL.glGetProgramiv(self.pid, GL.GL_LINK_STATUS):
             raise RuntimeError(GL.glGetProgramInfoLog(self.pid).decode(errors="replace"))
         self._locs = {}
+        # static effects (no clock) get their speed slot hidden in the UI
+        self.uses_time = ("u_time" in frag_body) or ("ftime" in frag_body)
 
     def loc(self, name):
         if name not in self._locs:
@@ -1176,6 +1178,8 @@ class Instrument:
             self._ensure_program(self.deck[self.deck_idx]["shader"])
         else:
             self.step_idx = (self.step_idx + delta) % len(self.playlist["steps"])
+        if not self._row_ok(self.param_row):
+            self.param_row = 2      # hopped onto a clockless effect from spd
 
     def nudge(self, delta):
         s = self.edit_step()
@@ -1510,10 +1514,12 @@ class Instrument:
             self.step(-1)
         elif ev == "next":
             self.step(+1)
-        elif ev == "left":
-            self.param_row = (self.param_row - 1) % len(self.PARAM_ROWS)
-        elif ev == "right":
-            self.param_row = (self.param_row + 1) % len(self.PARAM_ROWS)
+        elif ev in ("left", "right"):
+            d = -1 if ev == "left" else 1
+            for _ in range(len(self.PARAM_ROWS)):
+                self.param_row = (self.param_row + d) % len(self.PARAM_ROWS)
+                if self._row_ok(self.param_row):
+                    break
         elif ev == "up":
             self.nudge(+0.04)
         elif ev == "down":
@@ -1707,6 +1713,14 @@ class Instrument:
             return r.high
         return r.level  # 3 = ALL frequencies
 
+    def _has_time(self, step):
+        prog = self.programs.get(step["shader"])
+        return prog is None or getattr(prog, "uses_time", True)
+
+    def _row_ok(self, idx):
+        """Speed row is skipped for effects that never read the clock."""
+        return idx != 3 or self._has_time(self.edit_step())
+
     def _step_summary(self, s):
         lfo = "~" if any(s.get("lfo", [])) else ""
         return "%s%s %.2f %.2f %.2f spd %.2f" % (
@@ -1720,7 +1734,10 @@ class Instrument:
         parts = []
         lb = step.get("lfoband", [3, 3, 3, 3])
         lf = step.get("lfo", [False] * 4)
+        has_time = self._has_time(step)
         for i in range(4):
+            if i == 3 and not has_time:
+                continue            # static effect: no speed slot
             label = names[i]
             if lf[i]:
                 b = lb[i] if i < len(lb) else 3
@@ -1813,7 +1830,11 @@ class Instrument:
         for i, p in enumerate(meta["params"]):
             lfo = "  (LFO on)" if step["lfo"][i] else ""
             lines.append("%s %-7s %s%s" % (marker(i), p["name"], p["help"], lfo))
-        lines.append("%s %-7s effect animation speed" % (marker(3), "spd"))
+        if self._has_time(step):
+            lines.append("%s %-7s effect animation speed" % (marker(3), "spd"))
+        else:
+            lines.append("  %-7s (this effect has no clock — slot hidden)"
+                         % "spd")
         lines.append("%s %-7s input: plasma / clip / camera" % (marker(4), "src"))
         lines.append("%s %-7s audio: clip sound / NTS radio (LFOs follow it)"
                      % (marker(5), "aud"))
