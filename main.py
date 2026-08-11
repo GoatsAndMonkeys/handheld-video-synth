@@ -995,6 +995,7 @@ class Instrument:
         self._fps_key = None
 
         self.meta = {}  # shader sidecar metadata, loaded lazily per shader
+        self._failed_shaders = set()
 
     def load_playlist(self, name):
         if name == self.ALL_SET:     # browse every shader in the pack
@@ -1039,13 +1040,27 @@ class Instrument:
     def _ensure_program(self, name):
         if name in self.programs:
             return True
-        try:
-            self.programs[name] = Program(
-                os.path.join(self.pack_dir, "shaders", name + ".frag"))
-            return True
-        except Exception as exc:
-            print("shader %s failed: %s" % (name, exc))
+        if name in self._failed_shaders:
             return False
+        # current pack first, then any pack — deck scenes stay playable
+        # even when they were built around another pack's effect
+        import glob
+        paths = [os.path.join(self.pack_dir, "shaders", name + ".frag")]
+        paths += sorted(glob.glob(os.path.join(ROOT, "packs", "*",
+                                               "shaders", name + ".frag")))
+        for p in paths:
+            if not os.path.exists(p):
+                continue
+            try:
+                self.programs[name] = Program(p)
+                return True
+            except Exception as exc:
+                print("shader %s failed: %s" % (name, exc))
+                break
+        else:
+            print("shader %s not found in any pack" % name)
+        self._failed_shaders.add(name)      # never retry every frame
+        return False
 
     ALL_SET = "* everything"     # synthetic set: every shader in the pack
 
@@ -1073,6 +1088,7 @@ class Instrument:
             self.step_idx = 0
             if self.pack_dir != old[1]:      # new pack: fresh shader world
                 self.programs = {}
+                self._failed_shaders = set()
                 self.meta = {}
                 self.source_prog = Program(os.path.join(
                     self.pack_dir, "shaders", "_source_plasma.frag"))
