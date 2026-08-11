@@ -961,6 +961,7 @@ class Instrument:
         self._aud_owed = 0.0
         self._frame_no = 0
         self.menu_open = False
+        self._del_arm = None    # pending delete awaiting Y confirm
         self.menu_idx = 0
         self.menu_level = 0
         self.menu_cat = 0
@@ -1344,6 +1345,8 @@ class Instrument:
     def _menu_handle(self, ev):
         if self.kb:
             return self._kb_handle(ev)
+        if ev != "freeze" and self._del_arm:
+            self._del_arm = None       # anything but Y cancels the delete
         in_decks = self.MENU_CATS[self.menu_cat][0] == "deck"
         if in_decks and self.menu_level > 0 and ev in (
                 "lfo", "layer_focus_up", "layer_focus_down", "prev", "next"):
@@ -1450,6 +1453,11 @@ class Instrument:
             rows = self._menu_rows()
             row = (rows[self.menu_idx]
                    if rows and self.menu_idx < len(rows) else None)
+            if row and row[0] in ("deckopen", "deck") \
+                    and self._del_arm != (row[0], row[1]):
+                self._del_arm = (row[0], row[1])   # first Y just arms
+                return True
+            self._del_arm = None
             if row and row[0] == "deckopen":
                 di = row[1]
                 if len(self.decks) > 1:
@@ -1501,6 +1509,7 @@ class Instrument:
             return False
         if ev == "src":  # Start = open/close the loader
             self.menu_open = not self.menu_open
+            self._del_arm = None
             if self.menu_open:
                 self.menu_level = 0
                 self.menu_cat = 0
@@ -1812,6 +1821,18 @@ class Instrument:
         else:
             lines = ["%s   A: apply   B: back   Start: close"
                      % self.MENU_CATS[self.menu_cat][1].upper()]
+        if self._del_arm:
+            kind, ident = self._del_arm
+            if kind == "deckopen":
+                what = "deck '%s' (%d scenes)" % (
+                    self.decks[ident]["name"],
+                    len(self.decks[ident]["scenes"]))
+            else:
+                di, si = ident
+                sc = self.decks[di]["scenes"][si]
+                what = "scene %d '%s'" % (si + 1,
+                                          sc.get("name") or sc["shader"])
+            lines[0] = "DELETE %s?   [Y: yes   any other: no]" % what
         for i, (kind, _, label, active) in enumerate(rows[top:top + max_rows]):
             ri = top + i
             cur = ">" if ri == self.menu_idx else " "
