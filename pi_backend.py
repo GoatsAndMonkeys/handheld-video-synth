@@ -485,12 +485,24 @@ def _font(size):
 
 
 def text_image(lines, w, h):
-    """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim."""
+    """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim;
+    the [selected] span of line 0 pops in amber."""
     from PIL import Image, ImageDraw
     img = Image.new("RGB", (w, h), (10, 10, 14))
     dr = ImageDraw.Draw(img)
     for i, line in enumerate(lines):
-        if i == 0:
+        if i == 0 and "[" in line and "]" in line:
+            f = _font(14)
+            pre, rest = line.split("[", 1)
+            mid, post = rest.split("]", 1)
+            x = 8
+            for seg, col in ((pre, (120, 255, 150)),
+                             ("[" + mid + "]", (255, 200, 60)),
+                             (post, (120, 255, 150))):
+                if seg:
+                    dr.text((x, 4), seg, fill=col, font=f)
+                    x += dr.textlength(seg, font=f)
+        elif i == 0:
             dr.text((8, 4), line, fill=(120, 255, 150), font=_font(14))
         else:
             dr.text((8, 26 + (i - 1) * 15), line, fill=(150, 150, 170),

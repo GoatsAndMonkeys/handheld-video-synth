@@ -150,13 +150,26 @@ class DesktopPlatform:
         return out
 
     def text_image(self, lines, w, h):
-        """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim."""
+        """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim;
+        the [selected] span of line 0 pops in amber."""
         pg = self.pygame
         surf = pg.Surface((w, h))
         surf.fill((10, 10, 14))
         for i, line in enumerate(lines):
-            if i == 0:
-                surf.blit(self._font14.render(line, True, (120, 255, 150)), (8, 4))
+            if i == 0 and "[" in line and "]" in line:
+                pre, rest = line.split("[", 1)
+                mid, post = rest.split("]", 1)
+                x = 8
+                for seg, col in ((pre, (120, 255, 150)),
+                                 ("[" + mid + "]", (255, 200, 60)),
+                                 (post, (120, 255, 150))):
+                    if seg:
+                        r = self._font14.render(seg, True, col)
+                        surf.blit(r, (x, 4))
+                        x += r.get_width()
+            elif i == 0:
+                surf.blit(self._font14.render(line, True, (120, 255, 150)),
+                          (8, 4))
             else:
                 surf.blit(self._font11.render(line, True, (150, 150, 170)),
                           (8, 26 + (i - 1) * 15))
