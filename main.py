@@ -1085,11 +1085,14 @@ class Instrument:
         out = []
         for pdir in sorted(glob.glob(os.path.join(ROOT, "packs", "*"))):
             rel = os.path.relpath(pdir, ROOT)
-            out.append((rel, self.ALL_SET))
-            for pj in sorted(glob.glob(os.path.join(pdir, "playlists", "*.json"))):
-                name = os.path.splitext(os.path.basename(pj))[0]
-                if name not in ("deck", "decks"):
-                    out.append((rel, name))
+            names = [os.path.splitext(os.path.basename(pj))[0]
+                     for pj in sorted(glob.glob(os.path.join(
+                         pdir, "playlists", "*.json")))]
+            names = [n for n in names if n not in ("deck", "decks")]
+            # a set named after its pack IS that pack's "everything"
+            if os.path.basename(pdir) not in names:
+                out.append((rel, self.ALL_SET))
+            out.extend((rel, n) for n in names)
         return out
 
     def load_set(self, pack_rel, name):

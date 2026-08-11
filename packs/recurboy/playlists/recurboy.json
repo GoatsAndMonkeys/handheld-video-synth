@@ -1,5 +1,5 @@
 {
-  "name": "recurboy set",
+  "name": "recurboy",
   "steps": [
     {
       "shader": "colour_sine",
