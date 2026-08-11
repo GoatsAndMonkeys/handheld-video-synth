@@ -1,0 +1,8 @@
+{
+  "desc": "dithered web-safe GIF, 1997 internet",
+  "params": [
+    {"name": "pixels", "help": "chunk size — small thumbnails to big blocks"},
+    {"name": "dither", "help": "ordered dither strength (0 = flat posterize)"},
+    {"name": "crush", "help": "palette: 216 web-safe colors down to 8"}
+  ]
+}

@@ -45,6 +45,15 @@
         0.6
       ],
       "speed": 0.5
+    },
+    {
+      "shader": "netscape",
+      "x": [
+        0.35,
+        0.8,
+        0.0
+      ],
+      "speed": 0.5
     }
   ],
   "credit": "by GoatsAndMonkeys"

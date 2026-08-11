@@ -200,7 +200,7 @@ RetroPie openFrameworks synths target.
 | `haeckel` | superformula radiolaria with feedback trails | SUPER_HAECKEL_ADVENTURES_64 (Andrei Jay) |
 | `gravity` | orbiting attractor lenses the feedback | gravity_waaaves (Andrei Jay) |
 | `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) |
-| `ascii`, `gameboy`, `colorize`, `feedback` | terminal glyphs, 4-shade dither, color, trails | GoatsAndMonkeys (original to this project) |
+| `ascii`, `gameboy`, `colorize`, `feedback`, `netscape` | terminal glyphs, 4-shade dither, color, trails, web-safe GIF dither | GoatsAndMonkeys (original to this project) |
 | `packs/recurboy/*` | 15 shaders, **verbatim** (GPL-3.0, [pack LICENSE](packs/recurboy/LICENSE)) | official [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection (Tim Caldwell & contributors) |
 
 Attribution and licensing details for every effect: [CREDITS.md](CREDITS.md).
