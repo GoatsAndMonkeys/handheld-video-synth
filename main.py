@@ -1962,7 +1962,7 @@ def parse_size(s):
 def main():
     ap = argparse.ArgumentParser(description="HVS-80 (Handheld Video Synth)")
     ap.add_argument("--pack", default="packs/demo")
-    ap.add_argument("--playlist", default="set1")
+    ap.add_argument("--playlist", default="* everything")
     ap.add_argument("--rom", default=None,
                     help=".vsb ROM file: JSON {pack, playlist}")
     ap.add_argument("--source", choices=["gen", "clip", "cam"], default=None)
