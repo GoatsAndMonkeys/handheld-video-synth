@@ -1306,6 +1306,32 @@ class Instrument:
                 self.menu_idx = i
                 return
 
+    def _delete_target(self, kind, ident):
+        if kind == "deckopen":
+            di = ident
+            if len(self.decks) > 1:
+                del self.decks[di]
+                if self.deck_sel >= len(self.decks):
+                    self.deck_sel = len(self.decks) - 1
+                elif self.deck_sel > di:
+                    self.deck_sel -= 1
+            else:
+                self.decks[di]["scenes"] = []   # last deck: just empty it
+            self.deck_idx = 0
+            if not self.deck:
+                self.deck_mode = False
+        else:
+            di, si = ident
+            del self.decks[di]["scenes"][si]
+            if di == self.deck_sel:
+                if not self.deck:
+                    self.deck_mode = False
+                    self.deck_idx = 0
+                else:
+                    self.deck_idx = min(self.deck_idx, len(self.deck) - 1)
+        self._save_deck()
+        self.menu_idx = max(0, self.menu_idx - 1)
+
     KB_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
 
     def _kb_open(self, target, text):
@@ -1345,8 +1371,17 @@ class Instrument:
     def _menu_handle(self, ev):
         if self.kb:
             return self._kb_handle(ev)
-        if ev != "freeze" and self._del_arm:
-            self._del_arm = None       # anything but Y cancels the delete
+        if self._del_arm:
+            if ev == "punch_on":       # A = yes, delete it
+                kind, ident = self._del_arm
+                self._del_arm = None
+                self._delete_target(kind, ident)
+                return True
+            if ev == "freeze":         # Y again does nothing
+                return True
+            self._del_arm = None       # B (or anything else) = no
+            if ev == "randomize":
+                return True
         in_decks = self.MENU_CATS[self.menu_cat][0] == "deck"
         if in_decks and self.menu_level > 0 and ev in (
                 "lfo", "layer_focus_up", "layer_focus_down", "prev", "next"):
@@ -1449,42 +1484,12 @@ class Instrument:
                 if i == self.deck_sel:
                     self.deck_idx = len(self.deck) - 1
                 self._save_deck()
-        elif ev == "freeze":  # Y = delete deck (level 1) / scene (level 2)
+        elif ev == "freeze":  # Y = arm delete of deck / scene (A confirms)
             rows = self._menu_rows()
             row = (rows[self.menu_idx]
                    if rows and self.menu_idx < len(rows) else None)
-            if row and row[0] in ("deckopen", "deck") \
-                    and self._del_arm != (row[0], row[1]):
-                self._del_arm = (row[0], row[1])   # first Y just arms
-                return True
-            self._del_arm = None
-            if row and row[0] == "deckopen":
-                di = row[1]
-                if len(self.decks) > 1:
-                    del self.decks[di]
-                    if self.deck_sel >= len(self.decks):
-                        self.deck_sel = len(self.decks) - 1
-                    elif self.deck_sel > di:
-                        self.deck_sel -= 1
-                else:
-                    self.decks[di]["scenes"] = []   # last deck: just empty it
-                self.deck_idx = 0
-                if not self.deck:
-                    self.deck_mode = False
-                self._save_deck()
-                self.menu_idx = max(0, self.menu_idx - 1)
-            elif row and row[0] == "deck":
-                di, si = row[1]
-                del self.decks[di]["scenes"][si]
-                if di == self.deck_sel:
-                    if not self.deck:
-                        self.deck_mode = False
-                        self.deck_idx = 0
-                    else:
-                        self.deck_idx = min(self.deck_idx,
-                                            len(self.deck) - 1)
-                self._save_deck()
-                self.menu_idx = max(0, self.menu_idx - 1)
+            if row and row[0] in ("deckopen", "deck"):
+                self._del_arm = (row[0], row[1])
         elif ev == "randomize":  # B = back / close
             if self.menu_level == 2:
                 self.menu_level = 1
@@ -1832,7 +1837,7 @@ class Instrument:
                 sc = self.decks[di]["scenes"][si]
                 what = "scene %d '%s'" % (si + 1,
                                           sc.get("name") or sc["shader"])
-            lines[0] = "DELETE %s?   [Y: yes   any other: no]" % what
+            lines[0] = "DELETE %s?   [A: yes   B: no]" % what
         for i, (kind, _, label, active) in enumerate(rows[top:top + max_rows]):
             ri = top + i
             cur = ">" if ri == self.menu_idx else " "
