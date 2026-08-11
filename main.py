@@ -347,6 +347,7 @@ class RadioAudio:
         self.level = 0.0
         self.bass = 0.0
         self.high = 0.0
+        self.tap = b""      # raw PCM consumed this tick (streamer mirror)
         self._lp = 0.0
         self._peaks = [1e-4, 1e-4, 1e-4]  # auto-gain per band
 
@@ -469,7 +470,9 @@ class RadioAudio:
         except (BlockingIOError, OSError):
             data = None
         if not data:
+            self.tap = b""
             return
+        self.tap = data          # this tick's PCM — the streamer mirrors it
         a = array.array("h", data[:len(data) // 2 * 2])
         lp = self._lp
         n = 0
@@ -504,18 +507,19 @@ class Streamer:
     audio is decoded from the same source the instrument is playing. Frames
     are dropped rather than ever blocking the render loop."""
 
-    def __init__(self, ffmpeg, w, h, fps, audio_src, dest):
+    def __init__(self, ffmpeg, w, h, fps, dest):
         import subprocess
         import fcntl
         self.frame_size = w * h * 3
         cmd = [ffmpeg, "-loglevel", "error",
                "-f", "rawvideo", "-pix_fmt", "rgb24",
                "-s", "%dx%d" % (w, h), "-r", str(fps), "-i", "pipe:0"]
-        if audio_src is not None:
-            src, is_file = audio_src
-            cmd += (["-stream_loop", "-1", "-re"] if is_file else []) + ["-i", src]
-        else:
-            cmd += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+        # audio = the exact PCM the instrument is playing (clip sound or
+        # radio), fed live via push_audio — the stream carries what you hear
+        self._ar, self._aw = os.pipe()
+        os.set_blocking(self._aw, False)
+        cmd += ["-f", "s16le", "-ar", "22050", "-ac", "1",
+                "-i", "pipe:%d" % self._ar]
         # the Pi hw encoder emits SPS/PPS + IDR exactly once, so late
         # joiners on a UDP stream can never sync — the mixer path uses
         # software x264 (measured 2x realtime on the Zero 2W). rtmp and
@@ -542,7 +546,9 @@ class Streamer:
             cmd += ["-f", "mpegts", "-flush_packets", "1", dest]
         else:
             cmd += ["-y", dest]
-        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                     pass_fds=(self._ar,))
+        os.close(self._ar)
         self.dead = False
         # frames are ~1MB — far beyond a pipe buffer — so a writer thread
         # does blocking whole-frame writes; push() drops when it's behind
@@ -576,7 +582,19 @@ class Streamer:
         except Exception:
             pass  # encoder behind: drop the frame, never stall the instrument
 
+    def push_audio(self, pcm):
+        if not pcm or self.dead:
+            return
+        try:
+            os.write(self._aw, pcm)
+        except (BlockingIOError, BrokenPipeError, OSError):
+            pass  # pipe full or encoder gone: drop, never stall
+
     def close(self):
+        try:
+            os.close(self._aw)
+        except OSError:
+            pass
         try:
             self._q.put(None, timeout=1)
             self._thread.join(timeout=3)
@@ -920,6 +938,8 @@ class Instrument:
         self.stream_cfg = load_stream_cfg()
         self.output_idx = 0
         self.output_ui = False   # include the UI panels in streams/recordings
+        self._aud_t = time.time()
+        self._aud_owed = 0.0
         self._frame_no = 0
         self.menu_open = False
         self.menu_idx = 0
@@ -1539,16 +1559,10 @@ class Instrument:
         self.output_idx = i
 
     def start_stream(self, dest):
-        name, url = RADIO_STATIONS[self.radio.station_idx]
-        clip = self.current_clip_path()
-        if name == "clip" and clip:
-            audio_src = (clip, True)
-        elif url and url != "__CLIP__":
-            audio_src = (url, False)
-        else:
-            audio_src = None
         self.streamer = Streamer(_find_ffmpeg() or "ffmpeg",
-                                 self.w, self.h, 15, audio_src, dest)
+                                 self.w, self.h, 15, dest)
+        self._aud_t = time.time()
+        self._aud_owed = 0.0
         print("streaming to", dest.split("/")[2] if "://" in dest else dest)
 
     def draw_fullscreen(self):
@@ -1780,6 +1794,19 @@ class Instrument:
         if self.radio.is_clip and self.radio.target_path != self.current_clip_path():
             self.radio.retune(self.current_clip_path())
         self.radio.update()
+        if self.streamer is not None and not self.streamer.dead:
+            # mirror what's playing into the stream; pad silence when
+            # nothing plays so the muxer never stalls waiting for audio
+            now = time.time()
+            self._aud_owed += (now - self._aud_t) * 44100.0  # 22050 * 2 B/s
+            self._aud_t = now
+            if self.radio.tap:
+                self.streamer.push_audio(self.radio.tap)
+                self._aud_owed = max(0.0, self._aud_owed - len(self.radio.tap))
+            if self._aud_owed > 22050:          # starved > 0.5s
+                n = int(min(self._aud_owed, 44100.0)) & ~1
+                self.streamer.push_audio(b"\x00" * n)
+                self._aud_owed -= n
 
         if self.sources.mode == "gen":
             self.source_prog.use()
