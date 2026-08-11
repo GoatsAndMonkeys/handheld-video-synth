@@ -37,7 +37,7 @@ image" at the end).
 
 **Software (on your computer)**
 - [Raspberry Pi Imager](https://www.raspberrypi.com/software/) (or balenaEtcher)
-- A terminal with `ssh` and `rsync` (built into macOS/Linux; on Windows use WSL)
+- A terminal with `ssh` and `rsync` (built into macOS/Linux; Windows: WSL 2 — setup steps are in the README's "Windows, from zero" section)
 - A checkout of this repo:
   `git clone https://github.com/GoatsAndMonkeys/handheld-video-synth`
 
