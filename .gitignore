@@ -4,5 +4,5 @@ shots/
 *.pyc
 stream.json
 packs/*/playlists/deck.json
-packs/*/clips/*.mp4
+packs/*/clips/**/*.mp4
 packs/*/playlists/decks.json

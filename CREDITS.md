@@ -37,7 +37,7 @@ If any of this ever ships commercially, reach out to Andrei first as a
 courtesy — this scene runs on goodwill.
 
 `ascii`, `gameboy`, `colorize`, `feedback`, `matrix` (retired) and the
-engine itself are original to this project.
+engine itself are original to this project, by GoatsAndMonkeys.
 
 ## Runtime dependencies (not distributed in this repo)
 

@@ -996,6 +996,7 @@ class Instrument:
 
         self.meta = {}  # shader sidecar metadata, loaded lazily per shader
         self._failed_shaders = set()
+        self._credit_cache = {}
 
     def load_playlist(self, name):
         if name == self.ALL_SET:     # browse every shader in the pack
@@ -1063,6 +1064,21 @@ class Instrument:
         return False
 
     ALL_SET = "* everything"     # synthetic set: every shader in the pack
+
+    def _set_credit(self, pack, name):
+        """The set's credit line, cached (menu rebuilds every frame)."""
+        key = (pack, name)
+        if key not in self._credit_cache:
+            credit = None
+            if name != self.ALL_SET:
+                try:
+                    with open(os.path.join(ROOT, pack, "playlists",
+                                           name + ".json")) as f:
+                        credit = json.load(f).get("credit")
+                except Exception:
+                    pass
+            self._credit_cache[key] = credit
+        return self._credit_cache[key]
 
     def list_sets(self):
         import glob
@@ -1234,8 +1250,10 @@ class Instrument:
             for i, (pack, name) in enumerate(self.list_sets()):
                 active = (pack == self.pack_rel and name == self.playlist_name
                           and not self.deck)
-                rows.append(("set", i, "%s  (%s)" %
-                             (name, os.path.basename(pack)), active))
+                credit = self._set_credit(pack, name)
+                rows.append(("set", i, "%s%s  (%s)" %
+                             (name, "  — " + credit if credit else "",
+                              os.path.basename(pack)), active))
         else:  # deck manager
             if self.menu_level == 2:      # inside one deck (menu_col = index)
                 di = self.menu_col
