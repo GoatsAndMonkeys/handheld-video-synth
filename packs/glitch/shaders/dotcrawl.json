@@ -1,0 +1,9 @@
+{
+  "desc": "composite crosstalk — crawling dots and rainbow moire",
+  "params": [
+    {"name": "dots", "help": "colour printing into brightness along edges"},
+    {"name": "moire", "help": "fine detail decoding back out as rainbow"},
+    {"name": "crawl", "help": "dot pitch and how fast the pattern walks up"},
+    {"name": "std", "help": "0 = ntsc checker; up: pal line alternation, hanover bars"}
+  ]
+}

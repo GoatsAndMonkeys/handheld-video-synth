@@ -12,6 +12,10 @@
     {
       "name": "spiral",
       "help": "rotate + spiral shear"
+    },
+    {
+      "name": "detune",
+      "help": "rgb oscillator detune (0 = locked)"
     }
   ]
 }

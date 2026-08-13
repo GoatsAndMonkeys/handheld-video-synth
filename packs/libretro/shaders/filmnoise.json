@@ -1,0 +1,17 @@
+{
+  "desc": "worn technicolor print",
+  "params": [
+    {
+      "name": "wear",
+      "help": "grain, scratches, gate weave"
+    },
+    {
+      "name": "strip",
+      "help": "two-strip technicolor + misregistration"
+    },
+    {
+      "name": "gate",
+      "help": "vignette and hotspot"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "encoder at the bottom of the quality slider",
+  "params": [
+    {"name": "crush", "help": "quality — clean down to flat blocks"},
+    {"name": "block", "help": "size of the coefficient blocks"},
+    {"name": "ring", "help": "mosquito noise and edge overshoot"},
+    {"name": "bias", "help": "what gets thrown away: colour only <-> both (0.5) <-> luma only"}
+  ]
+}

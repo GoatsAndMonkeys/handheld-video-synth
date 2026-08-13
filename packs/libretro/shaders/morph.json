@@ -1,0 +1,8 @@
+{
+  "desc": "shapes swell or wither",
+  "params": [
+    {"name": "grow", "help": "size of the blob each pixel spreads into"},
+    {"name": "shape", "help": "erode (dark eats light) <-> dilate (light eats dark)"},
+    {"name": "hue", "help": "colours bleed apart <-> original colour, swollen shapes"}
+  ]
+}

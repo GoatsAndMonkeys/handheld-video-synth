@@ -12,6 +12,10 @@
     {
       "name": "hue",
       "help": "rotate all hues"
+    },
+    {
+      "name": "bright",
+      "help": "crush <-> lift the whole level (0.5 = flat)"
     }
   ]
 }

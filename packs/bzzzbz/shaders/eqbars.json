@@ -1,0 +1,17 @@
+{
+  "desc": "segmented led vu meter",
+  "params": [
+    {
+      "name": "leds",
+      "help": "lamps per column"
+    },
+    {
+      "name": "drive",
+      "help": "how hard audio pushes"
+    },
+    {
+      "name": "video",
+      "help": "0 generator, 1 reads the video"
+    }
+  ]
+}

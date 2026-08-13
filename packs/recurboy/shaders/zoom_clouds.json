@@ -1,0 +1,13 @@
+{
+  "desc": "drifting cloud field",
+  "params": [
+    {
+      "name": "speed",
+      "help": "drift speed"
+    },
+    {
+      "name": "scale",
+      "help": "cloud size"
+    }
+  ]
+}

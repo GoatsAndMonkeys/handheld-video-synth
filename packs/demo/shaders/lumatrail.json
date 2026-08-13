@@ -1,0 +1,9 @@
+{
+  "desc": "highlights linger as comet trails",
+  "params": [
+    {"name": "trail", "help": "how long the highlights persist"},
+    {"name": "key", "help": "brightness needed to leave a trail"},
+    {"name": "drift", "help": "trails rotate hue as they fade"},
+    {"name": "float", "help": "trails creep up or down (0.5 = pinned)"}
+  ]
+}

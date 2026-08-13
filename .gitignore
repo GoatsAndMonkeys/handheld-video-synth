@@ -6,3 +6,6 @@ stream.json
 packs/*/playlists/deck.json
 packs/*/clips/**/*.mp4
 packs/*/playlists/decks.json
+.DS_Store
+packs/*/playlists/deck_history/
+packs/*/playlists/*.displaced

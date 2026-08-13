@@ -1,0 +1,21 @@
+{
+  "desc": "punch, vibrance, bloom, split tone",
+  "params": [
+    {
+      "name": "punch",
+      "help": "filmic S-curve contrast — steepens the mids, no hard clip"
+    },
+    {
+      "name": "vibrance",
+      "help": "0.5 = unchanged; lifts muted colour, spares already-vivid"
+    },
+    {
+      "name": "bloom",
+      "help": "highlights bleed into their surroundings — chrome sheen"
+    },
+    {
+      "name": "split",
+      "help": "cool shadows against warm highlights (0 = neutral)"
+    }
+  ]
+}

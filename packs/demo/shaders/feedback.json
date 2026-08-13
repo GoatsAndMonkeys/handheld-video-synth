@@ -12,6 +12,10 @@
     {
       "name": "hue",
       "help": "hue drift per frame"
+    },
+    {
+      "name": "spin",
+      "help": "trails spiral either way (0.5 = still)"
     }
   ]
 }

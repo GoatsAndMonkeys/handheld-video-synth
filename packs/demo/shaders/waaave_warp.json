@@ -12,6 +12,10 @@
     {
       "name": "rot",
       "help": "rotate feedback"
+    },
+    {
+      "name": "zoom",
+      "help": "feedback zoom in <-> out (mid = default)"
     }
   ]
 }

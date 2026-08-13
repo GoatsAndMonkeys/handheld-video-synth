@@ -1,5 +1,6 @@
 // phosphorm-style audio scope: Lissajous traces drawn by the music,
-// decaying like phosphor on a CRT. x0 figure ratio, x1 audio amp, x2 decay
+// decaying like phosphor on a CRT. x0 figure ratio, x1 audio amp, x2 decay,
+// x3 beam width, 0 = the hairline trace it has always drawn
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
@@ -8,6 +9,7 @@ uniform float u_time;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 uniform float u_a0;
 uniform float u_a1;
 uniform float u_a2;
@@ -26,7 +28,7 @@ void main() {
                              sin(fb * t + u_a2 * 2.0));
         d = min(d, length(p - pt));
     }
-    float glow = exp(-d * 55.0);
+    float glow = exp(-d * (55.0 - u_x3 * 42.0));
     vec3 beam = vec3(0.25 + u_a0 * 0.6, 1.0, 0.4 + u_a2 * 0.6) * glow;
     float lum = dot(texture2D(u_tex0, v_texcoord).rgb,
                     vec3(0.299, 0.587, 0.114));

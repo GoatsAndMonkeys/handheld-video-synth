@@ -1,0 +1,17 @@
+{
+  "desc": "genesis jailbar colour crush",
+  "params": [
+    {
+      "name": "steps",
+      "help": "how many levels per channel"
+    },
+    {
+      "name": "bars",
+      "help": "jailbar hatching strength"
+    },
+    {
+      "name": "cap",
+      "help": "hold the highlights off full white"
+    }
+  ]
+}

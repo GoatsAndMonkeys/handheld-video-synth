@@ -1,0 +1,8 @@
+{
+  "desc": "picture strung on glass beads",
+  "params": [
+    {"name": "size", "help": "fine grain <-> fat beads"},
+    {"name": "bead", "help": "pinhole <-> bead fills its cell"},
+    {"name": "soft", "help": "hard edged beads <-> soft glow"}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "desc": "drifting interference contours",
+  "params": [
+    {
+      "name": "freq",
+      "help": "carrier frequency"
+    },
+    {
+      "name": "fold",
+      "help": "contour density"
+    },
+    {
+      "name": "video",
+      "help": "0 generator, 1 contours the video"
+    }
+  ]
+}

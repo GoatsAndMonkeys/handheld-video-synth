@@ -1,0 +1,21 @@
+{
+  "desc": "darkroom tone fold (Sabattier)",
+  "params": [
+    {
+      "name": "thresh",
+      "help": "where the tone curve creases"
+    },
+    {
+      "name": "amount",
+      "help": "dry video <-> full metallic fold"
+    },
+    {
+      "name": "fringe",
+      "help": "per-channel offsets color the creases"
+    },
+    {
+      "name": "double",
+      "help": "a second fold down in the shadows (0 = single crease)"
+    }
+  ]
+}

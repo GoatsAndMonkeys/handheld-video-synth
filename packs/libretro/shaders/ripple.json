@@ -1,0 +1,8 @@
+{
+  "desc": "water rings bend the picture",
+  "params": [
+    {"name": "depth", "help": "how far the water pushes the image"},
+    {"name": "fine", "help": "slow swell <-> tight ripples"},
+    {"name": "shine", "help": "light glinting off the wave crests"}
+  ]
+}

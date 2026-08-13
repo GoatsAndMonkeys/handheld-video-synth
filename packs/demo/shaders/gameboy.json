@@ -12,6 +12,10 @@
     {
       "name": "dither",
       "help": "dither strength"
+    },
+    {
+      "name": "grid",
+      "help": "LCD screen-door gaps between pixels"
     }
   ]
 }

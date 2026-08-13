@@ -12,6 +12,10 @@
     {
       "name": "chaos",
       "help": "chaotic huezones"
+    },
+    {
+      "name": "spin",
+      "help": "hue spin back <-> fwd (mid = still)"
     }
   ]
 }

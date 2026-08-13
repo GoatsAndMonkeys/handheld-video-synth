@@ -1,0 +1,17 @@
+{
+  "desc": "per-channel invert",
+  "params": [
+    {
+      "name": "red",
+      "help": "red inversion bias"
+    },
+    {
+      "name": "green",
+      "help": "green inversion bias"
+    },
+    {
+      "name": "blue",
+      "help": "blue inversion bias"
+    }
+  ]
+}

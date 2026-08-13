@@ -1,0 +1,21 @@
+{
+  "desc": "worn VHS tape playback",
+  "params": [
+    {
+      "name": "wear",
+      "help": "tape noise + white dropout streaks"
+    },
+    {
+      "name": "track",
+      "help": "line jitter, hard slips, tear violence"
+    },
+    {
+      "name": "chroma",
+      "help": "color lags and smears off the luma"
+    },
+    {
+      "name": "vhold",
+      "help": "vertical hold slips: picture creeps and rolls (0 = locked)"
+    }
+  ]
+}

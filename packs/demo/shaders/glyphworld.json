@@ -12,6 +12,10 @@
     {
       "name": "pal",
       "help": "palette shift"
+    },
+    {
+      "name": "chars",
+      "help": "alphabet: all glyphs <-> solid blocks (0 = all)"
     }
   ]
 }

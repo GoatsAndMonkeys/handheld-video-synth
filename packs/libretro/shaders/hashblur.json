@@ -1,0 +1,8 @@
+{
+  "desc": "grainy scattered-tap blur",
+  "params": [
+    {"name": "blur", "help": "how far the random taps reach"},
+    {"name": "edge", "help": "blur everywhere <-> sharp centre, soft rim"},
+    {"name": "boil", "help": "still grain <-> the noise crawls"}
+  ]
+}

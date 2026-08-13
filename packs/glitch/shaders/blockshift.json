@@ -1,0 +1,9 @@
+{
+  "desc": "macroblocks on wrong vectors — dragged and stuck tiles",
+  "params": [
+    {"name": "size", "help": "how big the macroblocks are"},
+    {"name": "shift", "help": "how many blocks go wrong and how far they land"},
+    {"name": "hold", "help": "how long a bad block stands, and how many never arrive"},
+    {"name": "aspect", "help": "block shape: tall columns <-> square (0.5) <-> wide slice strips"}
+  ]
+}

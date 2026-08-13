@@ -1,0 +1,9 @@
+{
+  "desc": "camera pointed at a crt — warm, curved, flickering",
+  "params": [
+    {"name": "curve", "help": "pincushion <-> flat <-> barrel off the glass"},
+    {"name": "scan", "help": "scanline depth and the rolling bright bar"},
+    {"name": "glow", "help": "bloom in the highlights"},
+    {"name": "tube", "help": "phosphor: blue-white mono <-> colour set (0.5) <-> amber mono"}
+  ]
+}

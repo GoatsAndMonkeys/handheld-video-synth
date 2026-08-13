@@ -1,0 +1,6 @@
+{
+  "name": "eyesy modes",
+  "artist": "after Critter & Guitari",
+  "description": "generators: scopes, grids, bullseyes and perspective fans reimplemented in GLSL from EYESY_OS modes (BSD-3)",
+  "version": 1
+}

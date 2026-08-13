@@ -1,5 +1,6 @@
 // glyph-worlds-style audio glyph field: cells of type flickering with the
-// bands, lit by the video underneath. x0 density, x1 audio drive, x2 palette
+// bands, lit by the video underneath. x0 density, x1 audio drive, x2 palette,
+// x3 alphabet size, 0 = the full glyph set, up = collapse onto solid blocks
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_atlas;
@@ -8,6 +9,7 @@ uniform float u_time;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 uniform float u_a0;
 uniform float u_a1;
 uniform float u_a2;
@@ -27,7 +29,8 @@ void main() {
     float av = band < 0.5 ? u_a0 : (band < 1.5 ? u_a1 : u_a2);
     float h = hash2(cell);
     float flick = floor(u_time * (2.0 + av * 10.0));
-    float gi = floor(hash2(cell + flick * 0.31) * (nglyphs - 2.0)) + 2.0;
+    float gspan = max(1.0, floor(mix(nglyphs - 2.0, 1.0, u_x3)));
+    float gi = floor(hash2(cell + flick * 0.31) * gspan) + nglyphs - gspan;
     float g = texture2D(u_atlas, vec2((gi + cuv.x) / nglyphs, cuv.y)).r;
 
     float lum = dot(texture2D(u_tex0, (cell + 0.5) / grid).rgb,

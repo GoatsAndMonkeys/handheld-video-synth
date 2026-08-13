@@ -1,0 +1,17 @@
+{
+  "name": "eyesy",
+  "steps": [
+    {"shader": "classicv", "x": [0.55, 0.45, 0.0], "speed": 0.5},
+    {"shader": "mirrgrid", "x": [0.35, 0.30, 0.0], "speed": 0.5},
+    {"shader": "gridcirc", "x": [0.45, 0.50, 0.0], "speed": 0.5},
+    {"shader": "concentr", "x": [0.40, 0.45, 0.0], "speed": 0.5},
+    {"shader": "radscope", "x": [0.60, 0.35, 0.0], "speed": 0.5},
+    {"shader": "perspect", "x": [0.50, 0.45, 0.0], "speed": 0.5},
+    {"shader": "classicv", "x": [0.70, 0.35, 0.85], "speed": 0.5},
+    {"shader": "mirrgrid", "x": [0.40, 0.45, 0.85], "speed": 0.5},
+    {"shader": "gridcirc", "x": [0.55, 0.50, 0.85], "speed": 0.5},
+    {"shader": "concentr", "x": [0.35, 0.45, 0.85], "speed": 0.5},
+    {"shader": "radscope", "x": [0.60, 0.45, 0.85], "speed": 0.5},
+    {"shader": "perspect", "x": [0.50, 0.40, 0.85], "speed": 0.5}
+  ]
+}

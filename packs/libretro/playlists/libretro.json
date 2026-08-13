@@ -1,0 +1,196 @@
+{
+  "name": "libretro",
+  "steps": [
+    {
+      "shader": "beads",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "cartoon",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "colormangle",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "crtfast",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "crttube",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "deband",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "ega16",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "filmnoise",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "gendither",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "hashblur",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "interlace",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "lcd3x",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "lcdghost",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "morph",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "neon",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "rewind",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "ripple",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "tvout",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "vrsplit",
+      "x": [
+        0.5,
+        0.5,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
+    }
+  ],
+  "credit": "ported from the libretro shader collections"
+}

@@ -12,6 +12,10 @@
     {
       "name": "cells",
       "help": "cell size"
+    },
+    {
+      "name": "rule",
+      "help": "charged cells fire and wrap early (0 = plain diffusion)"
     }
   ]
 }

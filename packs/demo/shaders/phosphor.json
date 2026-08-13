@@ -12,6 +12,10 @@
     {
       "name": "decay",
       "help": "phosphor persistence"
+    },
+    {
+      "name": "beam",
+      "help": "beam width hairline <-> fat (0 = hairline)"
     }
   ]
 }

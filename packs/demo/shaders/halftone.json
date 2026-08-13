@@ -1,0 +1,9 @@
+{
+  "desc": "CMYK print dots",
+  "params": [
+    {"name": "dots", "help": "fine <-> chunky dot screens"},
+    {"name": "ink", "help": "newspaper grey <-> full process color"},
+    {"name": "gain", "help": "how hard the ink hits the paper"},
+    {"name": "angle", "help": "turn the whole rosette 0-45 deg (0 = stock)"}
+  ]
+}

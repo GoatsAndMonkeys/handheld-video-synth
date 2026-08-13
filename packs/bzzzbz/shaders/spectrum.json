@@ -1,0 +1,17 @@
+{
+  "desc": "analyser bank with falling peaks",
+  "params": [
+    {
+      "name": "bins",
+      "help": "how many columns"
+    },
+    {
+      "name": "hold",
+      "help": "peak decay time"
+    },
+    {
+      "name": "video",
+      "help": "0 generator, 1 traces the video"
+    }
+  ]
+}

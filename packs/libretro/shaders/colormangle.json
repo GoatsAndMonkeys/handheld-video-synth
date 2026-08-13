@@ -1,0 +1,17 @@
+{
+  "desc": "channel crosstalk colour desk",
+  "params": [
+    {
+      "name": "bleed",
+      "help": "channels leak into each other"
+    },
+    {
+      "name": "sat",
+      "help": "mono <-> normal <-> lurid"
+    },
+    {
+      "name": "cntrst",
+      "help": "flat <-> normal <-> crushed"
+    }
+  ]
+}

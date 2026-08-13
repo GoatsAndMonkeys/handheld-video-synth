@@ -1,0 +1,21 @@
+{
+  "desc": "sine warp on both axes",
+  "params": [
+    {
+      "name": "amty",
+      "help": "vertical wobble depth"
+    },
+    {
+      "name": "freqy",
+      "help": "vertical wobble frequency"
+    },
+    {
+      "name": "amtx",
+      "help": "horizontal wobble depth"
+    },
+    {
+      "name": "freqx",
+      "help": "horizontal wobble frequency"
+    }
+  ]
+}

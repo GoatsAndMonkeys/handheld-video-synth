@@ -1,0 +1,9 @@
+{
+  "desc": "too few bits — banding, false colour, dropped bits",
+  "params": [
+    {"name": "bits", "help": "depth left per channel, red green blue apart"},
+    {"name": "bitrot", "help": "blocks losing bits — values wrap to nonsense"},
+    {"name": "blocks", "help": "how fine the corrupt blocks are and how fast they re-roll"},
+    {"name": "split", "help": "channels equal <-> the 3-3-2 split (0.5) <-> blue starved out"}
+  ]
+}

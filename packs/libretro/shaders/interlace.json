@@ -1,0 +1,8 @@
+{
+  "desc": "interlaced fields, combing on motion",
+  "params": [
+    {"name": "lines", "help": "field pitch — how many scan lines per field"},
+    {"name": "dark", "help": "how far the off-field lines drop toward black"},
+    {"name": "rate", "help": "field flip speed — frozen 240p up to full flicker"}
+  ]
+}

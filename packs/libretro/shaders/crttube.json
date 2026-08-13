@@ -1,0 +1,8 @@
+{
+  "desc": "curved shadow-mask tube with glow",
+  "params": [
+    {"name": "warp", "help": "barrel curvature — flat panel to fishbowl glass"},
+    {"name": "mask", "help": "RGB shadow mask depth between the phosphors"},
+    {"name": "glow", "help": "halation bloom bleeding off the bright lines"}
+  ]
+}

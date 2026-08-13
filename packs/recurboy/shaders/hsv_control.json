@@ -1,0 +1,21 @@
+{
+  "desc": "hue / sat / value shift",
+  "params": [
+    {
+      "name": "hue",
+      "help": "rotate hue (0.5 = unchanged)"
+    },
+    {
+      "name": "sat",
+      "help": "saturation (0.5 = unchanged)"
+    },
+    {
+      "name": "val",
+      "help": "brightness (0.5 = unchanged)"
+    },
+    {
+      "name": "mix",
+      "help": "dry video <-> shifted"
+    }
+  ]
+}

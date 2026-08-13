@@ -1,0 +1,17 @@
+{
+  "desc": "pumping bullseye of stacked discs",
+  "params": [
+    {
+      "name": "pitch",
+      "help": "ring spacing, bass makes it breathe"
+    },
+    {
+      "name": "hue",
+      "help": "colour step from one ring to the next"
+    },
+    {
+      "name": "video",
+      "help": "0 pure generator, 1 rings colour the video"
+    }
+  ]
+}

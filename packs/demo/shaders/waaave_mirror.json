@@ -12,6 +12,10 @@
     {
       "name": "mode",
       "help": "off/horiz/vert/kaleido"
+    },
+    {
+      "name": "zones",
+      "help": "1-4 zone repeats (low = 1, off)"
     }
   ]
 }

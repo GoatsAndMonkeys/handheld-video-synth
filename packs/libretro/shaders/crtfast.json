@@ -1,0 +1,8 @@
+{
+  "desc": "fast CRT scanlines with aperture grille",
+  "params": [
+    {"name": "lines", "help": "scanline pitch — coarse 90 lines to fine 480"},
+    {"name": "scan", "help": "how hard the gaps between lines go dark"},
+    {"name": "mask", "help": "aperture grille — dark column every other pixel"}
+  ]
+}

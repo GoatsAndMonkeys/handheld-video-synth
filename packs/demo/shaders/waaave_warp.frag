@@ -1,4 +1,5 @@
-// waaave bank 2 — drift controls. x0 x-displace, x1 y-displace, x2 rotate
+// waaave bank 2 — drift controls. x0 x-displace, x1 y-displace, x2 rotate,
+// x3 feedback zoom (mid = the gentle inward pull it has always had)
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
@@ -15,13 +16,14 @@ vec3 rgb2hsb(vec3 c) {
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 void main() {
     vec4 src = texture2D(u_tex0, v_texcoord);
     float srcLum = rgb2hsb(src.rgb).z;
 
     vec2 c = v_texcoord - 0.5;
-    c *= 0.995;                                   // gentle inward pull
+    c *= mix(0.975, 1.015, u_x3);                 // gentle inward pull
     float th = (u_x2 - 0.5) * 0.3;
     c = vec2(c.x * cos(th) - c.y * sin(th),
              c.x * sin(th) + c.y * cos(th));

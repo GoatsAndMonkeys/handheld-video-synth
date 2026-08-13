@@ -1,0 +1,9 @@
+{
+  "desc": "unsynced sources fought through one mixer",
+  "params": [
+    {"name": "drift", "help": "how fast the loose source scrolls away"},
+    {"name": "mix", "help": "level of the unsynced second source"},
+    {"name": "break", "help": "line tearing and colour folding past legal"},
+    {"name": "axis", "help": "which way it drifts: up <-> sideways (0.5) <-> back the other way"}
+  ]
+}

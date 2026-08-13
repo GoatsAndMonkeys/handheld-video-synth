@@ -12,6 +12,10 @@
     {
       "name": "drift",
       "help": "hue drift + rotate"
+    },
+    {
+      "name": "key",
+      "help": "lumakey spread: tight <-> wide (mid = as x0)"
     }
   ]
 }

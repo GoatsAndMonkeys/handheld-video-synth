@@ -1,0 +1,17 @@
+{
+  "desc": "16-colour ega dither",
+  "params": [
+    {
+      "name": "pixel",
+      "help": "chunky <-> fine pixels"
+    },
+    {
+      "name": "dither",
+      "help": "hatching between the 16 colours"
+    },
+    {
+      "name": "level",
+      "help": "drive the picture through the palette"
+    }
+  ]
+}

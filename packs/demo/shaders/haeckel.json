@@ -12,6 +12,10 @@
     {
       "name": "trail",
       "help": "edge glow + feedback trails"
+    },
+    {
+      "name": "arms",
+      "help": "third superformula exponent: round arms -> spiky (0 = stock)"
     }
   ]
 }

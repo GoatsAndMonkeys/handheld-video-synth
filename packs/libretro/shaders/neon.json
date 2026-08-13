@@ -1,0 +1,8 @@
+{
+  "desc": "edges burn as neon tubes",
+  "params": [
+    {"name": "glow", "help": "how hot the tubes burn"},
+    {"name": "base", "help": "black void <-> picture left under the tubes"},
+    {"name": "width", "help": "hairline <-> fat neon"}
+  ]
+}

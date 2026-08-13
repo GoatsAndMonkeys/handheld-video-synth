@@ -12,6 +12,10 @@
     {
       "name": "gain",
       "help": "brightness gain into glyphs"
+    },
+    {
+      "name": "under",
+      "help": "source shows through behind the glyphs"
     }
   ]
 }

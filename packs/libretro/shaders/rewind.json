@@ -1,0 +1,8 @@
+{
+  "desc": "time smeared backwards in sepia",
+  "params": [
+    {"name": "past", "help": "how far back the rewind reaches"},
+    {"name": "sepia", "help": "colour <-> old film tint"},
+    {"name": "trail", "help": "tight blur <-> second-long ghost"}
+  ]
+}

@@ -12,6 +12,10 @@
     {
       "name": "dir",
       "help": "sweep down <-> across"
+    },
+    {
+      "name": "skew",
+      "help": "diagonal slit -/+ (mid = straight)"
     }
   ]
 }

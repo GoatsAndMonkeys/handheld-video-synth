@@ -1,0 +1,9 @@
+{
+  "desc": "hardware luma key against the output bus, with trails",
+  "params": [
+    {"name": "level", "help": "brightness the key breaks at"},
+    {"name": "soft", "help": "hard cut <-> long soft key edge"},
+    {"name": "swap", "help": "past half: the live source wins the other side"},
+    {"name": "keysrc", "help": "0 = key off the live picture; up: the bus keys itself"}
+  ]
+}

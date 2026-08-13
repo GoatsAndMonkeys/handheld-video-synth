@@ -1,0 +1,17 @@
+{
+  "desc": "classic scope, rows swung from centre",
+  "params": [
+    {
+      "name": "width",
+      "help": "how far the trace swings from centre"
+    },
+    {
+      "name": "size",
+      "help": "line thickness and ball size"
+    },
+    {
+      "name": "video",
+      "help": "0 pure generator, 1 traces keyed + tinted by video"
+    }
+  ]
+}

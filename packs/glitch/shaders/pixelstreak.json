@@ -1,0 +1,9 @@
+{
+  "desc": "pixel sort — one tonal range smears into long runs",
+  "params": [
+    {"name": "range", "help": "which tones get sorted, dark -> bright"},
+    {"name": "pull", "help": "how far a run drags its colour sideways"},
+    {"name": "width", "help": "how much of the picture qualifies to streak"},
+    {"name": "dir", "help": "streak direction: vertical <-> sideways (0.5) <-> the other way"}
+  ]
+}

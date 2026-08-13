@@ -1,0 +1,17 @@
+{
+  "desc": "cellular noise rung by the music",
+  "params": [
+    {
+      "name": "bands",
+      "help": "ring frequency off the cells"
+    },
+    {
+      "name": "moire",
+      "help": "fine second wave"
+    },
+    {
+      "name": "video",
+      "help": "0 generator, 1 keys the video"
+    }
+  ]
+}

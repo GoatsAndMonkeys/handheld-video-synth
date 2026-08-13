@@ -1,6 +1,7 @@
 // gravity-waaaves-style feedback: an orbiting attractor lenses the
 // feedback buffer toward itself. x0 feedback mix, x1 gravity strength,
-// x2 orbit speed + radius
+// x2 orbit speed + radius, x3 a mirrored twin that pushes instead of
+// pulls, 0 = the single attractor
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
@@ -8,6 +9,7 @@ uniform float u_time;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 vec3 rgb2hsb(vec3 c) {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -26,6 +28,12 @@ void main() {
     vec2 toA = attractor - v_texcoord;
     float d = length(toA) + 0.04;
     vec2 pull = (toA / d) * u_x1 * 0.012 / d;
+
+    // twin at the mirrored point, same mass but repelling: the buffer
+    // streams from one well into the other
+    vec2 toB = (1.0 - attractor) - v_texcoord;
+    float db = length(toB) + 0.04;
+    pull -= (toB / db) * u_x1 * u_x3 * 0.012 / db;
 
     vec2 fbCoord = fract((v_texcoord - 0.5) * 0.997 + 0.5 + pull);
     vec3 fb = texture2D(u_tex1, fbCoord).rgb * 0.985;

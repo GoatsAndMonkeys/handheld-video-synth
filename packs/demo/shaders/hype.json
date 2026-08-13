@@ -1,0 +1,21 @@
+{
+  "desc": "wide lens + colour that pops",
+  "params": [
+    {
+      "name": "lens",
+      "help": "flat <-> extreme wide angle; vignette and rim colour follow it"
+    },
+    {
+      "name": "punch",
+      "help": "S-curve contrast — steepens the mids without clipping"
+    },
+    {
+      "name": "vibrance",
+      "help": "0.5 = unchanged; lifts muted colour, spares already-vivid"
+    },
+    {
+      "name": "shine",
+      "help": "highlights bleed into their surround — glossy sheen"
+    }
+  ]
+}

@@ -1,11 +1,13 @@
 // waaave bank 3 — feedback color life/death. x0 fb saturation, x1 fb
-// brightness (below mid = decay, above = bloom), x2 chaotic huezones
+// brightness (below mid = decay, above = bloom), x2 chaotic huezones,
+// x3 steady hue spin on the feedback path (mid = still)
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 vec3 rgb2hsb(vec3 c) {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -31,7 +33,8 @@ void main() {
 
     vec3 fbHsb = rgb2hsb(texture2D(u_tex1, fbCoord).rgb);
     // chaotic huezones: hue self-modulates, waaave_pool's signature acid
-    fbHsb.x = fract(fbHsb.x + u_x2 * 0.25 * sin(fbHsb.x * 6.2831 + srcLum * 3.0));
+    fbHsb.x = fract(fbHsb.x + (u_x3 - 0.5) * 0.05
+                    + u_x2 * 0.25 * sin(fbHsb.x * 6.2831 + srcLum * 3.0));
     fbHsb.y = clamp(fbHsb.y * mix(0.9, 1.12, u_x0), 0.0, 1.0);
     fbHsb.z = clamp(fbHsb.z * mix(0.94, 1.015, u_x1), 0.0, 1.0);
     vec3 fb = hsb2rgb(fbHsb);

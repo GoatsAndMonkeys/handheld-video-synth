@@ -1,0 +1,9 @@
+{
+  "desc": "posterised greyscale",
+  "params": [
+    {
+      "name": "steps",
+      "help": "1-21 grey levels: smooth <-> hard bands"
+    }
+  ]
+}

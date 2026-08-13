@@ -1,12 +1,14 @@
 // waaave_pool-inspired feedback zone: coordinate-warped feedback with HSB
 // color drift and lumakey routing (feedback grows out of the dark areas).
-// x0 feedback mix + lumakey threshold, x1 zoom, x2 hue drift + rotate
+// x0 feedback mix + lumakey threshold, x1 zoom, x2 hue drift + rotate,
+// x3 lumakey spread (mid = the threshold x0 already picks)
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;   // previous output frame
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 vec3 rgb2hsb(vec3 c) {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -48,6 +50,7 @@ void main() {
     // mix + lumakey routing: feedback claims the shadows
     float fbMix = u_x0 * 0.9;
     vec3 outc = mix(src.rgb, fb, fbMix);
-    if (srcLum < u_x0 * 0.5) { outc = fb; }
+    float key = u_x0 * 0.5 + (u_x3 - 0.5) * 0.5;
+    if (srcLum < key) { outc = fb; }
     gl_FragColor = vec4(clamp(outc, 0.0, 1.0), 1.0);
 }

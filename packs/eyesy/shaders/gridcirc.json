@@ -1,0 +1,17 @@
+{
+  "desc": "staggered grid of pulsing circles",
+  "params": [
+    {
+      "name": "rest",
+      "help": "resting radius before the audio swells it"
+    },
+    {
+      "name": "stagr",
+      "help": "how far odd rows slide off the lattice"
+    },
+    {
+      "name": "video",
+      "help": "0 pure generator, 1 dots sized + tinted by video"
+    }
+  ]
+}

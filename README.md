@@ -201,17 +201,22 @@ RetroPie openFrameworks synths target.
 | `gravity` | orbiting attractor lenses the feedback | gravity_waaaves (Andrei Jay) |
 | `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) |
 | `ascii`, `gameboy`, `colorize`, `feedback`, `websafe_y2k`, `rgbdelay` | terminal glyphs, 4-shade dither, color, trails, web-safe GIF dither, RGB time split | GoatsAndMonkeys (original to this project) |
+| `vhs`, `solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`, `nightvis` | tape decay, darkroom tone fold, luma time-split, CMYK print dots, wax drip, comet trails, heat camera, intensifier tube | GoatsAndMonkeys (original to this project) |
+| `ruttetra` | luma lifts scanlines into a wire terrain | homage to the Rutt/Etra scan processor (1972 hardware) |
 | `packs/recurboy/*` | 15 shaders, **verbatim** (GPL-3.0, [pack LICENSE](packs/recurboy/LICENSE)) | official [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection (Tim Caldwell & contributors) |
 
 Attribution and licensing details for every effect: [CREDITS.md](CREDITS.md).
 
-Every effect exposes exactly **3 params + speed** (the recurBOY convention),
-so any effect maps to the same controls, and every param can follow the
-music.
+Every effect exposes **3 params + speed** (the recurBOY convention), so any
+effect maps to the same controls, and every param can follow the music. A
+shader that declares `u_x3` gets a **fourth** knob; one that never reads the
+clock loses its speed slot. The bar only ever shows knobs that do something.
 
 ## Controls (GPi physical labels)
 
-The control bar reads left-to-right: `[mix] zoom drift spd src aud`.
+The control bar reads left-to-right: `[mix] zoom drift spd` — the effect's
+params then speed, with a fourth param appearing for shaders that use one.
+Video and audio sources are chosen in the Loader, not the bar.
 
 | control | action |
 | --- | --- |
@@ -225,8 +230,8 @@ The control bar reads left-to-right: `[mix] zoom drift spd src aud`.
 | L / R | prev / next effect (or deck scene in play mode) |
 | Start | the Loader menu (below) |
 | Select (tap) | overlay: bar → help panel → hidden |
-| **Select + A** | stack current effect as a layer (chain up to 3) |
-| **Select + B** | remove the focused layer (repeat to clear) |
+| **Select + A** | stack current effect as a layer (chain up to 5) |
+| **Select + B** | drop the focused layer — on the live effect it pops the stack, un-freezing the layer beneath |
 | **Select + ↑/↓** | pick which layer you're editing (multi-row bar) |
 | **Select + L/R** | deck BUILD ↔ PLAY mode |
 | **Select + Start** | quit to EmulationStation |

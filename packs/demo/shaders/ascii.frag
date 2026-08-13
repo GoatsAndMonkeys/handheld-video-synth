@@ -1,4 +1,5 @@
-// ASCII filter via glyph atlas. x0 cell count, x1 green->source-color, x2 gain
+// ASCII filter via glyph atlas. x0 cell count, x1 green->source-color,
+// x2 gain, x3 source underlay behind the glyphs
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_atlas;
@@ -6,6 +7,7 @@ uniform vec2 u_resolution;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 void main() {
     float nglyphs = 10.0;
@@ -18,7 +20,6 @@ void main() {
     lum = clamp(lum * (0.6 + u_x2 * 2.0), 0.0, 1.0);
     float gi = floor(lum * (nglyphs - 1.0) + 0.5);
     float g = texture2D(u_atlas, vec2((gi + cuv.x) / nglyphs, cuv.y)).r;
-    vec3 mono = vec3(0.35, 1.0, 0.45) * g;
-    vec3 colr = src * g * 1.7;
-    gl_FragColor = vec4(mix(mono, colr, u_x1), 1.0);
+    vec3 ink = mix(vec3(0.35, 1.0, 0.45), src * 1.7, u_x1);
+    gl_FragColor = vec4(max(ink * g, src * (u_x3 * 0.6)), 1.0);
 }

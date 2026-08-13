@@ -1,0 +1,8 @@
+{
+  "desc": "composite TV-out, colour off the luma",
+  "params": [
+    {"name": "band", "help": "luma bandwidth — sharp RGB down to RF mush"},
+    {"name": "bleed", "help": "how far colour smears sideways off its edges"},
+    {"name": "levels", "help": "crush full range into TV's 16-235 broadcast range"}
+  ]
+}

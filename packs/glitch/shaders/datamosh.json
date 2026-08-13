@@ -1,0 +1,9 @@
+{
+  "desc": "codec smear — motion vectors with no keyframes",
+  "params": [
+    {"name": "smear", "help": "how long the mosh holds before video returns"},
+    {"name": "push", "help": "block motion vector strength"},
+    {"name": "punch", "help": "how easily fresh video breaks through"},
+    {"name": "iframe", "help": "0 = no keyframes ever; up: clean video flashes back, faster"}
+  ]
+}

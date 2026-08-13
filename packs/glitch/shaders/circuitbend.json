@@ -1,0 +1,9 @@
+{
+  "desc": "circuit-bent processor — shorts, stray lines, rail sag",
+  "params": [
+    {"name": "bend", "help": "channel rotation and inversion, coming and going"},
+    {"name": "lines", "help": "stray horizontal and vertical scan lines"},
+    {"name": "volts", "help": "supply sag — slow brightness banding"},
+    {"name": "short", "help": "where the wire lands: colour <-> as built (0.5) <-> deflection + level"}
+  ]
+}

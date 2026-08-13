@@ -12,6 +12,10 @@
     {
       "name": "wet",
       "help": "dry <-> convolved"
+    },
+    {
+      "name": "rad",
+      "help": "kernel radius tight <-> wide (0 = tight)"
     }
   ]
 }

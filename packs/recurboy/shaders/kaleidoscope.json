@@ -1,0 +1,21 @@
+{
+  "desc": "mirrored pie sectors",
+  "params": [
+    {
+      "name": "sectors",
+      "help": "1-21 mirrored wedges"
+    },
+    {
+      "name": "spin",
+      "help": "rotation speed"
+    },
+    {
+      "name": "cx",
+      "help": "kaleidoscope centre, horizontal"
+    },
+    {
+      "name": "cy",
+      "help": "kaleidoscope centre, vertical"
+    }
+  ]
+}

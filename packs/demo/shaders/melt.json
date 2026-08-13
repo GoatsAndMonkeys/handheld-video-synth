@@ -1,0 +1,21 @@
+{
+  "desc": "frame sags and drips like wax",
+  "params": [
+    {
+      "name": "melt",
+      "help": "fresh video <-> full molten feedback"
+    },
+    {
+      "name": "drip",
+      "help": "how fast the image sags downward"
+    },
+    {
+      "name": "waver",
+      "help": "horizontal wobble as it falls"
+    },
+    {
+      "name": "reset",
+      "help": "wax re-forms from live video, column by column (0 = never)"
+    }
+  ]
+}

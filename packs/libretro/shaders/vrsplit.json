@@ -1,0 +1,8 @@
+{
+  "desc": "cardboard headset eye split",
+  "params": [
+    {"name": "eyes", "help": "how far apart the two views sit"},
+    {"name": "lens", "help": "flat <-> fat barrel distortion"},
+    {"name": "zoom", "help": "picture size inside each eye"}
+  ]
+}

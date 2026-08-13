@@ -1,0 +1,9 @@
+{
+  "desc": "extra deflection coils bending the raster itself",
+  "params": [
+    {"name": "rings", "help": "concentric rings walking out from the centre"},
+    {"name": "wave", "help": "travelling wave that bends the horizontal scan"},
+    {"name": "drive", "help": "coil gain, colour mistracking and beam bloom"},
+    {"name": "harm", "help": "0 = one coil; up: a second an octave up, rings knot into lobes"}
+  ]
+}

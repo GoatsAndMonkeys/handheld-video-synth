@@ -1,0 +1,8 @@
+{
+  "desc": "slow LCD panel ghosting and smear",
+  "params": [
+    {"name": "resp", "help": "panel response time — instant to long ghost tails"},
+    {"name": "asym", "help": "which way the lag leans: light-to-dark or dark-to-light"},
+    {"name": "smear", "help": "the trailing image drags sideways into streaks"}
+  ]
+}

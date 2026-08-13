@@ -1,0 +1,9 @@
+{
+  "desc": "signal loss — static, dead colour, rolling sync bar",
+  "params": [
+    {"name": "snow", "help": "how much signal is left under the static"},
+    {"name": "roll", "help": "the sync bar rolling through, and how fast"},
+    {"name": "grain", "help": "size of the static grains"},
+    {"name": "temp", "help": "snow colour: cold blue mono <-> neutral (0.5) <-> warm confetti"}
+  ]
+}

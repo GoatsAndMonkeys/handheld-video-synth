@@ -1,0 +1,9 @@
+{
+  "desc": "mixer effect switches slammed on a timer, then let go",
+  "params": [
+    {"name": "rate", "help": "how often a switch closes"},
+    {"name": "hold", "help": "how long the corruption stays down"},
+    {"name": "damage", "help": "how violent the short is when it fires"},
+    {"name": "short", "help": "0 = all four at random; up: locks to rotate / invert / levels / negative"}
+  ]
+}

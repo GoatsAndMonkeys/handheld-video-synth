@@ -1,4 +1,5 @@
-// Game Boy 4-shade dither. x0 pixel size, x1 palette hue, x2 dither strength
+// Game Boy 4-shade dither. x0 pixel size, x1 palette hue, x2 dither
+// strength, x3 LCD screen-door grid
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_dither;
@@ -6,6 +7,7 @@ uniform vec2 u_resolution;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 vec3 hueRotate(vec3 c, float a) {
     const vec3 k = vec3(0.57735);
@@ -16,7 +18,8 @@ vec3 hueRotate(vec3 c, float a) {
 void main() {
     float px = mix(160.0, 48.0, u_x0);
     vec2 grid = vec2(px, px * u_resolution.y / u_resolution.x);
-    vec2 cell = floor(v_texcoord * grid);
+    vec2 p = v_texcoord * grid;
+    vec2 cell = floor(p);
     vec3 src = texture2D(u_tex0, (cell + 0.5) / grid).rgb;
     float lum = dot(src, vec3(0.299, 0.587, 0.114));
     float d = texture2D(u_dither, cell / 4.0).r;
@@ -26,5 +29,8 @@ void main() {
     vec3 lite = vec3(0.608, 0.737, 0.059);
     vec3 c = mix(dark, lite, shade);
     c = hueRotate(c, (u_x1 - 0.5) * 6.2831);
+    // the gaps between the LCD's own pixels
+    vec2 e = abs(p - cell - 0.5);
+    c *= 1.0 - u_x3 * 0.8 * step(0.38, max(e.x, e.y));
     gl_FragColor = vec4(c, 1.0);
 }

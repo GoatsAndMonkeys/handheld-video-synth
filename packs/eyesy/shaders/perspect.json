@@ -1,0 +1,17 @@
+{
+  "desc": "fan of lines to a wandering vanishing point",
+  "params": [
+    {
+      "name": "vanish",
+      "help": "sweeps the vanishing point across the screen"
+    },
+    {
+      "name": "weight",
+      "help": "line thickness and end-dot size"
+    },
+    {
+      "name": "video",
+      "help": "0 pure generator, 1 trace keyed + tinted by video"
+    }
+  ]
+}

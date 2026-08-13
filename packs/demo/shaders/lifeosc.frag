@@ -1,6 +1,7 @@
 // artificial-life-style chaotic video oscillators: spatial waves
 // phase-modulated by the video and ring-modulated by the feedback.
-// x0 frequency, x1 video phase-mod depth, x2 rotate/spiral
+// x0 frequency, x1 video phase-mod depth, x2 rotate/spiral,
+// x3 rgb detune: pulls the g/b oscillators off r, 0 = the stock hairline beat
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
@@ -9,6 +10,7 @@ uniform float u_time;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 void main() {
     vec2 p = v_texcoord - 0.5;
@@ -26,10 +28,11 @@ void main() {
     float pm = lum * u_x1 * 18.0 + prev.g * u_x1 * 6.0;
     float th = p.x * freq + u_time * 3.0 + pm;
 
+    float det = 0.005 + u_x3 * 0.25;
     vec3 osc;
     osc.r = (sin(th) + 1.0) * 0.5;
-    osc.g = (sin(th * 1.005 + 2.09 + pm * 0.3) + 1.0) * 0.5;
-    osc.b = (sin(th * 0.995 + 4.18 - pm * 0.3) + 1.0) * 0.5;
+    osc.g = (sin(th * (1.0 + det) + 2.09 + pm * 0.3) + 1.0) * 0.5;
+    osc.b = (sin(th * (1.0 - det) + 4.18 - pm * 0.3) + 1.0) * 0.5;
 
     // ring-mod against the feedback keeps it alive and chaotic
     vec3 outc = mix(osc, osc * (0.4 + prev * 1.6), 0.5);

@@ -63,6 +63,157 @@
         0.25
       ],
       "speed": 0.5
+    },
+    {
+      "shader": "vhs",
+      "x": [
+        0.35,
+        0.5,
+        0.6
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "ruttetra",
+      "x": [
+        0.6,
+        0.5,
+        0.3
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "solarize",
+      "x": [
+        0.5,
+        0.9,
+        0.4
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "timegrad",
+      "x": [
+        0.9,
+        1.0,
+        0.3
+      ],
+      "speed": 0.7
+    },
+    {
+      "shader": "halftone",
+      "x": [
+        0.5,
+        1.0,
+        0.5
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "melt",
+      "x": [
+        0.9,
+        0.8,
+        0.6
+      ],
+      "speed": 0.7
+    },
+    {
+      "shader": "lumatrail",
+      "x": [
+        0.9,
+        0.5,
+        0.7
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "thermal",
+      "x": [
+        0.6,
+        0.2,
+        0.5
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "nightvis",
+      "x": [
+        0.5,
+        0.4,
+        0.7
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "hype",
+      "x": [
+        0.0,
+        0.45,
+        0.75,
+        0.25
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "hype",
+      "x": [
+        0.5,
+        0.5,
+        0.72,
+        0.35
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "hype",
+      "x": [
+        0.9,
+        0.7,
+        0.85,
+        0.6
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "fisheye",
+      "x": [
+        0.45,
+        0.6,
+        0.35,
+        0.2
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "fisheye",
+      "x": [
+        0.85,
+        0.35,
+        0.65,
+        0.55
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "colorpop",
+      "x": [
+        0.45,
+        0.72,
+        0.25,
+        0.3
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "colorpop",
+      "x": [
+        0.75,
+        0.88,
+        0.55,
+        0.0
+      ],
+      "speed": 0.5
     }
   ],
   "credit": "by GoatsAndMonkeys"

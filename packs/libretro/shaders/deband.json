@@ -1,0 +1,17 @@
+{
+  "desc": "random probes dissolve the bands",
+  "params": [
+    {
+      "name": "range",
+      "help": "how far the probe is thrown"
+    },
+    {
+      "name": "thresh",
+      "help": "how flat an area has to be to give way"
+    },
+    {
+      "name": "grain",
+      "help": "noise dusted over the result"
+    }
+  ]
+}

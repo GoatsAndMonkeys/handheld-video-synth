@@ -1,0 +1,21 @@
+{
+  "desc": "brightness chooses the era",
+  "params": [
+    {
+      "name": "depth",
+      "help": "how far back the shadows reach (~1s max)"
+    },
+    {
+      "name": "split",
+      "help": "dry video <-> full luma time-split"
+    },
+    {
+      "name": "wash",
+      "help": "past eras bleed additively, luminous"
+    },
+    {
+      "name": "edge",
+      "help": "smooth blend <-> hard cut between eras (0 = smooth)"
+    }
+  ]
+}

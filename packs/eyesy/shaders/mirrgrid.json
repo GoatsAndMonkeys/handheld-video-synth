@@ -1,0 +1,17 @@
+{
+  "desc": "ruled grid with mirrored bar scopes",
+  "params": [
+    {
+      "name": "thick",
+      "help": "line weight and end-cap size"
+    },
+    {
+      "name": "dense",
+      "help": "grid pitch, 6 to 46 columns"
+    },
+    {
+      "name": "video",
+      "help": "0 pure generator, 1 bars keyed + tinted by video"
+    }
+  ]
+}

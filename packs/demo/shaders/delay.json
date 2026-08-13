@@ -12,6 +12,10 @@
     {
       "name": "regen",
       "help": "echo trails"
+    },
+    {
+      "name": "tap2",
+      "help": "second echo at half the time (0 = off)"
     }
   ]
 }

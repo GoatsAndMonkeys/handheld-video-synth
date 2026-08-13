@@ -1,0 +1,8 @@
+{
+  "desc": "LCD panel with RGB subpixel stripes",
+  "params": [
+    {"name": "cells", "help": "LCD pixel pitch — fine panel to chunky blocks"},
+    {"name": "depth", "help": "how dark the gaps between R, G, B stripes go"},
+    {"name": "scan", "help": "horizontal row gaps across the panel"}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "desc": "spinning radial scope, dots on the tips",
+  "params": [
+    {
+      "name": "reach",
+      "help": "scope diameter before the audio adds to it"
+    },
+    {
+      "name": "spokes",
+      "help": "16 to 72 spokes, thinner as they multiply"
+    },
+    {
+      "name": "video",
+      "help": "0 pure generator, 1 spokes keyed + tinted by video"
+    }
+  ]
+}

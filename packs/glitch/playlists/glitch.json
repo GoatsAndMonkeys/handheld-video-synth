@@ -1,0 +1,141 @@
+{
+  "name": "glitch",
+  "steps": [
+    {
+      "shader": "rescan",
+      "x": [
+        0.75,
+        0.8,
+        0.6
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "dirtymix",
+      "x": [
+        0.45,
+        0.75,
+        0.55
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "synccorrupt",
+      "x": [
+        0.6,
+        0.35,
+        0.55
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "tbcstutter",
+      "x": [
+        0.7,
+        0.7,
+        0.45
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "circuitbend",
+      "x": [
+        0.75,
+        0.6,
+        0.5
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "datamosh",
+      "x": [
+        0.9,
+        0.55,
+        0.35
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "jpegcrush",
+      "x": [
+        0.7,
+        0.45,
+        0.6
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "wobbulator",
+      "x": [
+        0.6,
+        0.5,
+        0.55
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "pixelstreak",
+      "x": [
+        0.6,
+        0.7,
+        0.45
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "lumakey",
+      "x": [
+        0.5,
+        0.35,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "mixerbend",
+      "x": [
+        0.6,
+        0.5,
+        0.7
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "dotcrawl",
+      "x": [
+        0.7,
+        0.5,
+        0.5
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "bitcrush",
+      "x": [
+        0.65,
+        0.5,
+        0.5
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "blockshift",
+      "x": [
+        0.5,
+        0.6,
+        0.5
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "snow",
+      "x": [
+        0.45,
+        0.6,
+        0.5
+      ],
+      "speed": 0.5
+    }
+  ],
+  "credit": "by GoatsAndMonkeys"
+}

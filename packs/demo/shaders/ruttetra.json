@@ -1,0 +1,21 @@
+{
+  "desc": "Rutt/Etra scanline terrain",
+  "params": [
+    {
+      "name": "lift",
+      "help": "how far brightness pushes lines upward"
+    },
+    {
+      "name": "lines",
+      "help": "coarse <-> fine scanline count"
+    },
+    {
+      "name": "fill",
+      "help": "wireframe on black <-> displaced solid video"
+    },
+    {
+      "name": "weight",
+      "help": "hairline wires <-> fat glowing ribbons (0 = stock)"
+    }
+  ]
+}

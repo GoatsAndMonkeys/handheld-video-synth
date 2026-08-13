@@ -12,6 +12,10 @@
     {
       "name": "orbit",
       "help": "attractor speed + radius"
+    },
+    {
+      "name": "twin",
+      "help": "mirrored twin repels, streaming the buffer (0 = off)"
     }
   ]
 }

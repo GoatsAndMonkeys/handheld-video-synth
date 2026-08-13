@@ -1,0 +1,21 @@
+{
+  "desc": "three interfering ring fields",
+  "params": [
+    {
+      "name": "speed",
+      "help": "how fast the rings pulse"
+    },
+    {
+      "name": "ring1",
+      "help": "first ring frequency"
+    },
+    {
+      "name": "ring2",
+      "help": "second ring frequency"
+    },
+    {
+      "name": "ring3",
+      "help": "third ring frequency"
+    }
+  ]
+}

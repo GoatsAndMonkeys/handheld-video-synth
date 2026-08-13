@@ -1,0 +1,9 @@
+{
+  "desc": "sync slips — torn bands, rolling frame, no lock",
+  "params": [
+    {"name": "hsync", "help": "how far torn bands slide sideways"},
+    {"name": "vhold", "help": "vertical roll speed and blanking seam"},
+    {"name": "loss", "help": "band count, retrigger rate, total loss of hold"},
+    {"name": "blank", "help": "blanking bar width — hairline <-> as built (0.5) <-> fat band"}
+  ]
+}

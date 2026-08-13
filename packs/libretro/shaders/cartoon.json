@@ -1,0 +1,8 @@
+{
+  "desc": "flat cel paint with ink lines",
+  "params": [
+    {"name": "ink", "help": "thickness of the drawn border"},
+    {"name": "edge", "help": "how little contrast it takes to draw a line"},
+    {"name": "flat", "help": "painted colour <-> muted grey cel"}
+  ]
+}

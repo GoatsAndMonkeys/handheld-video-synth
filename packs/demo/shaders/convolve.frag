@@ -1,6 +1,7 @@
 // convolutional-chaos-style morphing kernel: blur <-> sharpen with
 // self-exciting feedback resonance.
-// x0 blur<->sharpen, x1 feedback resonance, x2 dry<->wet
+// x0 blur<->sharpen, x1 feedback resonance, x2 dry<->wet,
+// x3 kernel radius, 0 = the tight 1.5px tap the shader has always used
 varying vec2 v_texcoord;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
@@ -8,6 +9,7 @@ uniform vec2 u_resolution;
 uniform float u_x0;
 uniform float u_x1;
 uniform float u_x2;
+uniform float u_x3;
 
 vec3 conv(sampler2D t, vec2 uv, vec2 px, float a) {
     vec3 c = texture2D(t, uv).rgb;
@@ -20,7 +22,7 @@ vec3 conv(sampler2D t, vec2 uv, vec2 px, float a) {
 }
 
 void main() {
-    vec2 px = 1.5 / u_resolution;
+    vec2 px = (1.5 + u_x3 * 4.5) / u_resolution;
     float a = (u_x0 - 0.35) * 2.2;
     vec3 src = texture2D(u_tex0, v_texcoord).rgb;
     vec3 res = conv(u_tex0, v_texcoord, px, a);

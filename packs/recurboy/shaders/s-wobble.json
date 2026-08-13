@@ -1,0 +1,17 @@
+{
+  "desc": "polar squash and swirl",
+  "params": [
+    {
+      "name": "spin",
+      "help": "swirl speed"
+    },
+    {
+      "name": "height",
+      "help": "vertical stretch"
+    },
+    {
+      "name": "width",
+      "help": "horizontal squash"
+    }
+  ]
+}

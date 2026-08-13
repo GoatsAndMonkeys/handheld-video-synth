@@ -1,0 +1,41 @@
+{
+  "name": "bzzzbz",
+  "steps": [
+    {
+      "shader": "cells",
+      "x": [
+        0.42,
+        0.28,
+        0.3
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "spectrum",
+      "x": [
+        0.45,
+        0.5,
+        0.35
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "eqbars",
+      "x": [
+        0.5,
+        0.72,
+        0.3
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "wavepat",
+      "x": [
+        0.5,
+        0.35,
+        0.35
+      ],
+      "speed": 0.5
+    }
+  ]
+}

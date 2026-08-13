@@ -1,0 +1,21 @@
+{
+  "desc": "false-color heat camera",
+  "params": [
+    {
+      "name": "heat",
+      "help": "gain \u2014 how hot the scene reads"
+    },
+    {
+      "name": "pal",
+      "help": "iron-bow <-> FLIR rainbow palette"
+    },
+    {
+      "name": "bands",
+      "help": "smooth gradient <-> stepped isotherms"
+    },
+    {
+      "name": "floor",
+      "help": "cold cutoff: below it reads as dead black (0 = off)"
+    }
+  ]
+}

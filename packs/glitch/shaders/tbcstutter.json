@@ -1,0 +1,9 @@
+{
+  "desc": "tbc abuse — bands of the frame pause in the past",
+  "params": [
+    {"name": "depth", "help": "how far back a hold jumps (~0.5s max)"},
+    {"name": "hold", "help": "how much of the frame freezes at once"},
+    {"name": "stutter", "help": "band count and re-trigger rate"},
+    {"name": "fine", "help": "0 = fat bands; up: the freeze cuts into thin slivers"}
+  ]
+}
