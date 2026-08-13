@@ -45,9 +45,11 @@ ASCII_CHARS = " .:-=+*#%@"
 # One size for everything the menus and the patch view draw. There is no
 # reason for a row you read while performing to be smaller than the title
 # above it, and 320px carries 39 columns of it.
-HEAD_ROW_PX = 14
-ROW_STEP = HEAD_ROW_PX + 5   # 14px type needs more than the old 15px pitch,
-                             # or the cursor bar laps the rows either side
+HEAD_ROW_PX = 16    # 10px cell, 63 columns across the 640px surface —
+                    # the largest that still fits a 16-char effect name
+                    # beside five fully-spelled parameter labels
+ROW_STEP = HEAD_ROW_PX + 5   # bigger type needs more than the old 15px
+                             # pitch, or rows lap the ones either side
 
 
 # --------------------------------------------------------------------------
@@ -625,16 +627,34 @@ class Streamer:
         self.frame_size = w * h * 3
         # wallclock timestamps: frames arrive at render pace, not the
         # nominal fps — stamping arrival time keeps audio/video clocks
-        # aligned (nominal stamps made audio drift behind and cut out)
-        cmd = [ffmpeg, "-loglevel", "error",
-               "-f", "rawvideo", "-pix_fmt", "rgb24",
+        # aligned (nominal stamps made audio drift behind and cut out).
+        # It goes on *both* inputs; see the audio pipe below for why.
+        # Recording talks: its stderr goes to a log nobody reads mid-set, so
+        # verbosity is free there, and "error" told us nothing for a whole
+        # evening of zero-byte files. Live output stays quiet — its stderr
+        # is the app's own.
+        to_file = not dest.startswith(("rtmp", "udp:", "srt:"))
+        cmd = [ffmpeg, "-loglevel", "info" if to_file else "error"]
+        if to_file:
+            cmd += ["-stats", "-stats_period", "2"]
+        cmd += ["-f", "rawvideo", "-pix_fmt", "rgb24",
                "-s", "%dx%d" % (w, h), "-r", str(fps),
                "-use_wallclock_as_timestamps", "1", "-i", "pipe:0"]
         # audio = the exact PCM the instrument is playing (clip sound or
         # radio), fed live via push_audio — the stream carries what you hear
+        #
+        # Both inputs must be stamped the same way. Wallclock stamps put video
+        # at Unix epoch seconds; raw PCM with no stamps starts at zero. ffmpeg
+        # reads whichever input is furthest behind, so a zero-based audio pipe
+        # is chased forever against a video clock 56 years ahead and video's
+        # stdin is never drained again — the writer blocks mid-frame, the
+        # muxer never opens the output, and the recording is 0 bytes.
+        # Measured on the deck: 4 frames drained before the stall with the
+        # flag on video alone, 78 with it on both.
         self._ar, self._aw = os.pipe()
         os.set_blocking(self._aw, False)
-        cmd += ["-f", "s16le", "-ar", "22050", "-ac", "1",
+        cmd += ["-use_wallclock_as_timestamps", "1",
+                "-f", "s16le", "-ar", "22050", "-ac", "1",
                 "-i", "pipe:%d" % self._ar]
         # the Pi hw encoder emits SPS/PPS + IDR exactly once, so late
         # joiners on a UDP stream can never sync — the mixer path uses
@@ -645,7 +665,11 @@ class Streamer:
             vcodec = ["-c:v", "libx264", "-preset", "ultrafast",
                       "-tune", "zerolatency"]
         elif IS_PI:
-            vcodec = ["-c:v", "h264_v4l2m2m"]
+            # the driver's own words: "All capture buffers returned to
+            # userspace. Increase num_capture_buffers to prevent device
+            # deadlock" — and a deadlock at frame=2 is what a recording
+            # died of. The default is 4; give it real headroom.
+            vcodec = ["-c:v", "h264_v4l2m2m", "-num_capture_buffers", "64"]
         else:
             vcodec = ["-c:v", "libx264", "-preset", "veryfast"]
         # mixer rides the LAN: quality-targeted, capped at 6mbit.
@@ -655,14 +679,37 @@ class Streamer:
         cmd += (["-map", "0:v", "-map", "1:a", "-vf", "vflip"] + vcodec +
                 quality +
                 ["-g", str(fps * 2), "-pix_fmt", "yuv420p",
+                 # audio arrives in bursts (a whole tap or a padding block per
+                 # write) so wallclock stamps within a burst come out jumbled;
+                 # async resampling rebuilds one monotonic clock from them
+                 # instead of making the muxer interleave against garbage
+                 "-af", "aresample=async=1000",
                  "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-shortest"])
+        # -shortest belongs on every destination, file included. It was moved
+        # off the file path on the theory that it truncates a recording made
+        # with no audio source — and that broke recording outright, because
+        # without it the muxer sits waiting on two live pipes that never end
+        # and never opens the output at all. Recordings worked with it and
+        # stopped working without it; leave it alone.
         if dest.startswith("rtmp"):
             cmd += ["-f", "flv", dest]
         elif dest.startswith(("udp:", "srt:")):
             cmd += ["-f", "mpegts", "-flush_packets", "1", dest]
         else:
             cmd += ["-y", dest]
+        # Keep the encoder's own words. Recordings failed silently for a
+        # whole evening because nothing captured them: -loglevel error with
+        # an inherited stderr printed nothing at all, which left no way to
+        # tell a crash from a stall from an empty input.
+        self.log_path = "/home/pi/ffmpeg_rec.log" if IS_PI else "/tmp/ffmpeg_rec.log"
+        try:
+            self._errlog = open(self.log_path, "w")
+            self._errlog.write(" ".join(cmd) + "\n\n")
+            self._errlog.flush()
+        except OSError:
+            self._errlog = None
         self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                     stderr=self._errlog or None,
                                      pass_fds=(self._ar,))
         os.close(self._ar)
         self.dead = False
@@ -670,6 +717,7 @@ class Streamer:
         # does blocking whole-frame writes; push() drops when it's behind
         import queue
         import threading
+        self.written = 0
         self._q = queue.Queue(maxsize=2)
         self._thread = threading.Thread(target=self._writer, daemon=True)
         self._thread.start()
@@ -681,7 +729,23 @@ class Streamer:
                 break
             try:
                 self.proc.stdin.write(raw)
-            except (BrokenPipeError, OSError):
+                self.written += 1
+                if self.written in (1, 10, 100):
+                    # the one fact never captured: whether frames actually
+                    # reach the encoder. Detecting a rawvideo stream proves
+                    # nothing — that comes from the -f/-s flags, not data.
+                    print("recorder: %d frame(s) written, %d bytes each"
+                          % (self.written, len(raw)))
+            except (BrokenPipeError, OSError) as exc:
+                print("recorder: pipe closed after %d frame(s): %s"
+                      % (self.written, exc))
+                self.dead = True
+                break
+            except Exception as exc:
+                # anything else killed this thread silently before, which
+                # looks identical to the encoder never receiving a frame
+                print("recorder: writer died after %d frame(s): %r"
+                      % (self.written, exc))
                 self.dead = True
                 break
         try:
@@ -1312,11 +1376,42 @@ class Instrument:
             (self.pack_rel, self.pack_dir, self.playlist,
              self.playlist_name, self.step_idx) = old
 
+    def _adopt_pack_decks(self):
+        """First run after decks went global: take the richest per-pack file.
+
+        Copied, never moved — if this picks wrong, the originals are still
+        sitting where they always were."""
+        import glob as _glob
+        best, most = None, 0
+        for cand in _glob.glob(os.path.join(ROOT, "packs", "*", "playlists",
+                                            "decks.json")):
+            try:
+                with open(cand) as f:
+                    d = json.load(f)
+                n = sum(len(x.get("scenes", [])) for x in d.get("decks", []))
+            except Exception:
+                continue
+            if n > most:
+                best, most = cand, n
+        if best:
+            try:
+                shutil.copy2(best, self.decks_path)
+                print("patch decks adopted from %s (%d patches)"
+                      % (os.path.relpath(best, ROOT), most))
+            except OSError as exc:
+                print("could not adopt patch decks:", exc)
+
     def _load_decks(self):
         """decks.json: {"active": i, "decks": [{"name", "scenes"}]}.
         Migrates the old single-deck deck.json on first sight."""
-        self.decks_path = os.path.join(self.pack_dir, "playlists",
-                                       "decks.json")
+        # Patch decks belong to the instrument, not to an effect pack. They
+        # used to live under the current pack, so switching effect set showed
+        # an empty deck list — indistinguishable from having lost the lot.
+        # Patches reference shaders across packs anyway, so there was never a
+        # reason for them to be filed under one.
+        self.decks_path = os.path.join(ROOT, "decks.json")
+        if not os.path.exists(self.decks_path):
+            self._adopt_pack_decks()
         old_path = os.path.join(self.pack_dir, "playlists", "deck.json")
         self.decks = [{"name": "DECK 1", "scenes": []}]
         self.deck_sel = 0
@@ -1426,7 +1521,7 @@ class Instrument:
 
     MENU_CATS = [("video", "Video source"), ("audio", "Audio source"),
                  ("output", "Output"), ("sets", "FX deck"),
-                 ("deck", "My decks")]
+                 ("deck", "Patch decks")]
 
     def _cat_current(self, key):
         if key == "video":
@@ -1523,15 +1618,15 @@ class Instrument:
                         body = body[:49] + "..."
                     rows.append(("deck", (di, si), "%d  %s" % (si + 1, body),
                                  di == self.deck_sel and si == self.deck_idx))
-                rows.append(("deckadd", di, "+ save current scene here",
+                rows.append(("deckadd", di, "+ save current patch here",
                              False))
                 return rows
             if self.deck:
-                mode = ("mode: PLAY deck  (L/R = scenes)" if self.deck_mode
+                mode = ("mode: PLAY patch deck  (L/R = patches)" if self.deck_mode
                         else "mode: BUILD  (L/R = effects)")
                 rows.append(("deckmode", None, mode, self.deck_mode))
             for di, dk in enumerate(self.decks):
-                rows.append(("deckopen", di, "%s  (%d scenes)" %
+                rows.append(("deckopen", di, "%s  (%d patches)" %
                              (dk["name"], len(dk["scenes"])),
                              di == self.deck_sel))
             rows.append(("decknew", None, "+ new deck", False))
@@ -1876,6 +1971,13 @@ class Instrument:
             self.start_stream(self.stream_cfg["mixer"])
         elif i == 2:
             clips = os.path.join(self.pack_dir, "clips")
+            # not every pack ships a clips folder — glitch does not — and
+            # ffmpeg cannot create one, so it failed to open the output and
+            # wrote nothing at all
+            try:
+                os.makedirs(clips, exist_ok=True)
+            except OSError as exc:
+                print("cannot make", clips, exc)
             n = 1
             while os.path.exists(os.path.join(clips, "rec_%02d.mp4" % n)):
                 n += 1
@@ -2022,10 +2124,19 @@ class Instrument:
             s["shader"], lfo, aud,                       # advance as ASCII
             s["x"][0], s["x"][1], s["x"][2], s["speed"])
 
-    PATCH_COLS = 39          # what fits across 320px at the full type size
+    # width is measured from the surface now, see _patch_cols
 
-    # label width and decimal places, tried in order until the row fits
-    PATCH_FITS = ((4, 2), (3, 2), (2, 2), (2, 1))
+    # label width and decimal places, tried in order until the row fits.
+    # 99 means the label is not shortened at all — on a 640px surface the
+    # full parameter name fits with room over, and only a narrow display
+    # ever needs to start giving letters back.
+    PATCH_FITS = ((99, 2), (6, 2), (4, 2), (3, 2), (2, 2), (2, 1))
+
+    def _patch_cols(self):
+        """Columns across the real surface. This is 640px wide, not the
+        320 of the panel it is scaled onto — assuming the smaller number
+        cost half the row and squeezed names that never needed squeezing."""
+        return max(20, (self.w - 8) // max(1, int(HEAD_ROW_PX * 0.6)))
 
     def _patch_rows(self, st, is_focus):
         """One line per effect: its name, then every knob with a label.
@@ -2049,20 +2160,29 @@ class Instrument:
             bits = []
             for i in slots:
                 val = st["x"][i] if i < 4 else st["speed"]
-                txt = ("s" if i == 4 else names[i][:width]) \
-                    + ("%.*f" % (dp, val)).lstrip("0")
+                lab = ("spd" if i == 4 else names[i])[:width]
+                txt = lab + ("%.*f" % (dp, val)).lstrip("0")
                 if lf[i]:
                     b = lb[i] if i < len(lb) else 3
                     txt += "~" + ("" if b == 3 else "LMH"[b])
+                # only the knob actually being turned is marked, and only on
+                # the focused effect. The brackets never draw — the renderer
+                # eats them and paints that span red instead
+                if is_focus and self.param_row == i:
+                    txt = "[%s]" % txt
                 bits.append(txt)
             return " ".join(bits)
 
+        cols = self._patch_cols()
+        # the two bracket characters are markup, not glyphs — counting them
+        # would shrink labels to buy space that is never actually used
+        drawn = lambda s: len(s) - (2 if "[" in s else 0)
         for width, dp in self.PATCH_FITS:
             tail = build(width, dp)
-            if len(head) + len(tail) + 3 <= self.PATCH_COLS:
+            if len(head) + drawn(tail) + 3 <= cols:
                 break
         else:
-            head = head[:max(3, self.PATCH_COLS - 3 - len(tail))]
+            head = head[:max(3, cols - 3 - drawn(tail))]
         # only the name carries the highlight. The values are reference, not
         # navigation — picking one out competes with the thing you actually
         # need to find at a glance, which is which effect you are standing on
@@ -2136,20 +2256,20 @@ class Instrument:
             lines = ["%s   A: play   B: back   Start: close"
                      % str(self.menu_col).upper()]
         elif in_decks:
-            lines = ["MY DECKS   A: open   X: rename   Y: delete   B: back"]
+            lines = ["PATCH DECKS   A: open   X: rename   Y: delete   B: back"]
         else:
             lines = ["%s   A: apply   B: back   Start: close"
                      % self.MENU_CATS[self.menu_cat][1].upper()]
         if self._del_arm:
             kind, ident = self._del_arm
             if kind == "deckopen":
-                what = "deck '%s' (%d scenes)" % (
+                what = "patch deck '%s' (%d patches)" % (
                     self.decks[ident]["name"],
                     len(self.decks[ident]["scenes"]))
             else:
                 di, si = ident
                 sc = self.decks[di]["scenes"][si]
-                what = "scene %d '%s'" % (si + 1,
+                what = "patch %d '%s'" % (si + 1,
                                           sc.get("name") or sc["shader"])
             lines[0] = "DELETE %s?   [A: yes   B: no]" % what
         for i, (kind, _, label, active) in enumerate(rows[top:top + max_rows]):
@@ -2172,13 +2292,20 @@ class Instrument:
         lines = ["%s%s — %s" % (step["shader"],
                                 "♪" if self._has_audio(step) else "",
                                 meta["desc"])]
+        # browsing the knobs, the one you are on goes red — the same mark the
+        # patch view uses, so the two screens agree about where you are
+        def name(i, text):
+            return "[%-7s]" % text if self.param_row == i else " %-7s " % text
+
         for i, p in enumerate(meta["params"][:4]):
             if i == 3 and not self._has_x3(step):
                 continue        # sidecar lists a 4th param the shader lacks
             lfo = "  (LFO on)" if step["lfo"][i] else ""
-            lines.append("%s %-7s %s%s" % (marker(i), p["name"], p["help"], lfo))
+            lines.append("%s%s %s%s" % (marker(i), name(i, p["name"]),
+                                        p["help"], lfo))
         if self._has_time(step):
-            lines.append("%s %-7s effect animation speed" % (marker(4), "spd"))
+            lines.append("%s%s effect animation speed"
+                         % (marker(4), name(4, "spd")))
         else:
             lines.append("  %-7s (this effect has no clock — slot hidden)"
                          % "spd")
@@ -2194,7 +2321,9 @@ class Instrument:
         key = tuple(lines)
         if key != self._help_key:
             self._help_key = key
-            raw = self.plat.text_image(lines, self.w, self.help_h)
+            raw = self.plat.text_image(lines, self.w, self.help_h,
+                                       body_px=HEAD_ROW_PX,
+                                       row_step=ROW_STEP)
             upload_raw(self.help_tex, self.w, self.help_h, raw)
 
     def render(self, dt):

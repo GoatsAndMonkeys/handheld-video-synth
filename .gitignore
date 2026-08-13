@@ -9,3 +9,6 @@ packs/*/playlists/decks.json
 .DS_Store
 packs/*/playlists/deck_history/
 packs/*/playlists/*.displaced
+/decks.json
+/decks.json.*
+/deck_history/
