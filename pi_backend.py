@@ -106,7 +106,15 @@ class PiWindow:
             raise RuntimeError("eglMakeCurrent failed")
 
     def flip(self):
-        self.egl.eglSwapBuffers(ctypes.c_void_p(self.display), ctypes.c_void_p(self.surface))
+        ok = self.egl.eglSwapBuffers(ctypes.c_void_p(self.display),
+                                     ctypes.c_void_p(self.surface))
+        # a lost surface makes every later swap a silent no-op: the picture
+        # sticks while the engine happily runs on, so say so out loud
+        if not ok:
+            self._swap_fails = getattr(self, "_swap_fails", 0) + 1
+            if self._swap_fails in (1, 10, 100, 1000):
+                print("eglSwapBuffers FAILED (x%d) eglGetError=0x%x"
+                      % (self._swap_fails, self.egl.eglGetError()), flush=True)
 
 
 # --------------------------------------------------------------------------
@@ -136,6 +144,7 @@ class _GLES2:
     GL_FLOAT = 0x1406
     GL_TRIANGLES = 0x0004
     GL_SCISSOR_TEST = 0x0C11
+    GL_NO_ERROR = 0
 
     def __init__(self, lib):
         self._g = lib
@@ -145,12 +154,16 @@ class _GLES2:
 
     @staticmethod
     def _ptr(data):
+        # GL only reads these, so borrow the caller's buffer instead of
+        # copying it: a copy here is a whole video frame per upload, which
+        # on the Pi is megabytes a second of garbage
         if data is None:
             return None
-        if not isinstance(data, (bytes, bytearray)):
-            data = data.tobytes()  # numpy array or similar
-        return ctypes.cast(ctypes.create_string_buffer(bytes(data), len(data)),
-                           ctypes.c_void_p)
+        if isinstance(data, bytes):
+            return ctypes.c_char_p(data)
+        if isinstance(data, bytearray):
+            return (ctypes.c_char * len(data)).from_buffer(data)
+        return ctypes.c_char_p(data.tobytes())  # numpy array or similar
 
     def glCreateShader(self, kind):
         return self._g.glCreateShader(kind)
@@ -280,6 +293,9 @@ class _GLES2:
         buf = ctypes.create_string_buffer(w * h * 3)
         self._g.glReadPixels(x, y, w, h, fmt, typ, buf)
         return buf.raw
+
+    def glGetError(self):
+        return self._g.glGetError()
 
 
 class _GLProxy:
@@ -484,29 +500,130 @@ def _font(size):
         return ImageFont.load_default()
 
 
-def text_image(lines, w, h):
-    """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim;
-    the [selected] span of line 0 pops in amber."""
+# Pixel-doubling a tiny font was tried and looked awful: DejaVu is not drawn
+# for 5px, and thresholding at that size destroys the glyph shapes rather
+# than squaring them off. The hard-edged look survives without it — killing
+# the anti-aliasing is what does the work, not making the pixels bigger.
+SCALE = 1
+HEAD_PX = 14
+BODY_PX = 11                # 7px advance: 44 columns, as before the restyle
+BG = (26, 112, 196)         # set-top blue, the bright saturated one
+FG = (245, 245, 250)        # body copy
+ACCENT = (255, 222, 60)     # yellow: the row you are on, and anything live
+SEL_BAR = (255, 222, 60)    # the knob in play, as a block
+SEL_TEXT = (26, 112, 196)   # knocked back out to the ground colour
+HOT = (255, 78, 58)         # the one value you are turning, service-menu red
+RAIL = (14, 56, 130)        # the darker gutter down the left edge
+RAIL_THUMB = (130, 190, 240)
+RAIL_W = 5
+
+
+def _blit(img, xy, text, font, colour, thresh=90):
+    """Draw text as solid blocks rather than anti-aliased grey.
+
+    At this size almost every pixel of a glyph is partial coverage, so
+    filling with white lands around mid grey and doubling it gives mush.
+    Rendering to a mask and cutting each pixel fully on or fully off is what
+    a real bitmap font would have given us, and it is where the hard
+    staircase edges come from."""
     from PIL import Image, ImageDraw
-    img = Image.new("RGB", (w, h), (10, 10, 14))
-    dr = ImageDraw.Draw(img)
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).text(xy, text, fill=255, font=font)
+    img.paste(colour, mask=mask.point(lambda v: 255 if v >= thresh else 0))
+
+
+def _row(img, x0, y, line, font, fg, px, span=None):
+    """Draw a row, rendering any [span] as a solid block of colour.
+
+    Two separate things get highlighted and they must not be the same mark:
+    the effect you are on is a bar across its whole name, the knob you are
+    turning is a block around that value alone. Both in yellow, one wide and
+    one narrow, so a glance tells you which is which."""
+    from PIL import ImageDraw
+    if span is None or "[" not in line or "]" not in line:
+        _blit(img, (x0, y), line, font, fg)
+        return
+    block, text = span
+    pre, rest = line.split("[", 1)
+    mid, post = rest.split("]", 1)
+    x = x0
+    if pre:
+        _blit(img, (x, y), pre, font, fg)
+        x += int(font.getlength(pre))
+    if mid:
+        wpx = int(font.getlength(mid))
+        if block is not None:            # a solid chip behind the value
+            ImageDraw.Draw(img).rectangle([x - 2, y - 1, x + wpx, y + px + 1],
+                                          fill=block)
+        _blit(img, (x, y), mid, font, text)
+        x += wpx
+    if post:
+        _blit(img, (x, y), post, font, fg)
+
+
+def text_image(lines, w, h, body_px=None, header=True, row_step=15,
+               scroll=None):
+    """Bottom-up RGB bytes, in the manner of a 2000s set-top menu: black
+    ground, white text, green for the header and for anything playing, and
+    the row under the cursor as a solid inverse bar.
+
+    The retro edge comes from thresholding every pixel fully on or off, so
+    nothing is anti-aliased and the glyphs have hard staircase corners. That
+    is the part that reads as old hardware; shrinking the font on top of it
+    only made the text unreadable.
+    """
+    from PIL import Image, ImageDraw
+    sw, sh = max(1, w // SCALE), max(1, h // SCALE)
+    img = Image.new("RGB", (sw, sh), BG)
+    # The menu can afford bigger type than the parameter strip: its rows are
+    # short, where the strip has to fit a shader name and five numbers.
+    head, body = _font(HEAD_PX), _font(body_px or BODY_PX)
+    x0 = 8 // SCALE
+    # gutter down the left, carrying a proportional thumb when there is more
+    # to see than fits. scroll is (first visible row, total rows).
+    ImageDraw.Draw(img).rectangle([0, 0, RAIL_W - 1, sh], fill=RAIL)
+    if scroll:
+        top, total = scroll
+        if total > len(lines) > 0:
+            th = max(6, int(sh * len(lines) / float(total)))
+            ty = int((sh - th) * top / float(max(1, total - len(lines))))
+            ImageDraw.Draw(img).rectangle(
+                [0, ty, RAIL_W - 1, ty + th], fill=RAIL_THUMB)
     for i, line in enumerate(lines):
-        if i == 0 and "[" in line and "]" in line:
-            f = _font(14)
-            pre, rest = line.split("[", 1)
-            mid, post = rest.split("]", 1)
-            x = 8
-            for seg, col in ((pre, (120, 255, 150)),
-                             ("[" + mid + "]", (255, 200, 60)),
-                             (post, (120, 255, 150))):
-                if seg:
-                    dr.text((x, 4), seg, fill=col, font=f)
-                    x += dr.textlength(seg, font=f)
-        elif i == 0:
-            dr.text((8, 4), line, fill=(120, 255, 150), font=_font(14))
+        if i == 0 and header:
+            y = 4 // SCALE
+            if "[" in line and "]" in line:
+                pre, rest = line.split("[", 1)
+                mid, post = rest.split("]", 1)
+                x = x0
+                for seg, col in ((pre, ACCENT),
+                                 ("[" + mid + "]", FG),   # the live choice
+                                 (post, ACCENT)):         # inverts the pair
+                    if seg:
+                        _blit(img, (x, y), seg, head, col)
+                        x += int(head.getlength(seg))
+            else:
+                _blit(img, (x0, y), line, head, ACCENT)
+            continue
+        # keep the old spacing arithmetic and halve it, so the strip height
+        # main.py reserves per line still lines up with what gets drawn.
+        # Without a header every row is equal, so they start from the top.
+        y = ((26 + (i - 1) * row_step) if header
+             else (4 + i * row_step)) // SCALE
+        px = body_px or BODY_PX
+        # red text rather than a chip: on a row that has already gone yellow,
+        # a solid block reads as a second cursor and fights the row itself
+        span = (None, HOT)
+        if line.startswith(">"):
+            # the row you are on simply goes yellow. A full-width bar is the
+            # wrong mark here — it would compete with the block that shows
+            # which single value you are about to change
+            _row(img, x0, y, line, body, ACCENT, px, span)
+        elif "*" in line[:3]:                    # marked as currently live
+            _row(img, x0, y, line, body, ACCENT, px, span)
         else:
-            dr.text((8, 26 + (i - 1) * 15), line, fill=(150, 150, 170),
-                    font=_font(11))
+            _row(img, x0, y, line, body, FG, px, span)
+    img = img.resize((w, h), Image.NEAREST)
     return img.transpose(Image.FLIP_TOP_BOTTOM).tobytes()
 
 

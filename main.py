@@ -15,8 +15,12 @@ Logical controls (GPi buttons / desktop keys):
 import argparse
 import json
 import os
+import shutil
 import struct
 import time
+
+import battery
+import deckvault
 
 try:
     import numpy as np  # desktop only (cv2 frames); the Pi path avoids it
@@ -37,6 +41,13 @@ void main() {
 """
 
 ASCII_CHARS = " .:-=+*#%@"
+
+# One size for everything the menus and the patch view draw. There is no
+# reason for a row you read while performing to be smaller than the title
+# above it, and 320px carries 39 columns of it.
+HEAD_ROW_PX = 14
+ROW_STEP = HEAD_ROW_PX + 5   # 14px type needs more than the old 15px pitch,
+                             # or the cursor bar laps the rows either side
 
 
 # --------------------------------------------------------------------------
@@ -149,9 +160,12 @@ class DesktopPlatform:
                     out.append("right")
         return out
 
-    def text_image(self, lines, w, h):
+    def text_image(self, lines, w, h, body_px=None, header=True,
+                   row_step=15, scroll=None):
         """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim;
-        the [selected] span of line 0 pops in amber."""
+        the [selected] span of line 0 pops in amber. The styling arguments
+        are honoured on the Pi renderer; the desktop build keeps its own
+        look, but must accept them all or every caller breaks."""
         pg = self.pygame
         surf = pg.Surface((w, h))
         surf.fill((10, 10, 14))
@@ -226,8 +240,10 @@ class PiPlatform:
     def poll(self):
         return self.input.poll() if self.input else []
 
-    def text_image(self, lines, w, h):
-        return self.backend.text_image(lines, w, h)
+    def text_image(self, lines, w, h, body_px=None, header=True,
+                   row_step=15, scroll=None):
+        return self.backend.text_image(lines, w, h, body_px, header,
+                                       row_step, scroll)
 
     def glyph_atlas(self, chars):
         return self.backend.glyph_atlas(chars)
@@ -267,8 +283,14 @@ class Program:
         if not GL.glGetProgramiv(self.pid, GL.GL_LINK_STATUS):
             raise RuntimeError(GL.glGetProgramInfoLog(self.pid).decode(errors="replace"))
         self._locs = {}
-        # static effects (no clock) get their speed slot hidden in the UI
+        # static effects (no clock) get their speed slot hidden in the UI,
+        # and only shaders that declare u_x3 show a 4th param slot
         self.uses_time = ("u_time" in frag_body) or ("ftime" in frag_body)
+        self.uses_x3 = "u_x3" in frag_body
+        # u_a0/u_a1/u_a2 are bass/level/highs — a shader that reads any of
+        # them moves with the music, which is worth knowing before you stack
+        # it. Only 12 of the ~100 effects do, so the mark stays meaningful.
+        self.uses_audio = any(u in frag_body for u in ("u_a0", "u_a1", "u_a2"))
 
     def loc(self, name):
         if name not in self._locs:
@@ -324,6 +346,34 @@ def upload_raw(tex, w, h, raw):
                        GL.GL_RGB, GL.GL_UNSIGNED_BYTE, raw)
 
 
+def _migrate_slots(step):
+    """Bring a step up to 4 params + speed. Saved files from the 3-param
+    era keep the speed flag in slot 3, which is now x3's — move it along
+    rather than silently turning someone's speed LFO into an x3 LFO."""
+    step["x"] = [float(v) for v in step["x"]]
+    while len(step["x"]) < 4:
+        step["x"].append(0.5)
+    for key, fill in (("lfo", False), ("lfoband", 3)):
+        vals = list(step.get(key, []))
+        if len(vals) == 4:                  # old [x0, x1, x2, speed]
+            vals.insert(3, fill)
+        while len(vals) < 5:
+            vals.append(fill)
+        step[key] = vals[:5]
+
+
+def _rss_mb():
+    """Resident set size, MB. The Pi has ~237MB to play with before the
+    kernel starts killing things, so this is worth watching."""
+    try:
+        with open("/proc/self/statm") as f:
+            return int(f.read().split()[1]) * 4096 // (1024 * 1024)
+    except Exception:
+        import resource
+        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return rss // (1024 * 1024) if rss > 1 << 20 else rss // 1024
+
+
 def make_bayer_texture():
     b = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
     raw = bytes(v for cell in b
@@ -334,12 +384,59 @@ def make_bayer_texture():
 # --------------------------------------------------------------------------
 # Sources
 # --------------------------------------------------------------------------
+# (name, url, group, blurb). A group puts the station behind a submenu so
+# twenty of them do not bury "off" and "clip" at the top of one long list.
+# The NTS entries came from https://www.nts.live/api/v2/mixtapes — refresh
+# with tools/refresh_nts.py if they ever retire or add a channel.
 RADIO_STATIONS = [
-    ("off", None),
-    ("clip", "__CLIP__"),   # sound of the current video clip
-    ("NTS1", "https://stream-relay-geo.ntslive.net/stream"),
-    ("NTS2", "https://stream-relay-geo.ntslive.net/stream2"),
+    ("off", None, None, ""),
+    ("clip", "__CLIP__", None, ""),   # sound of the current video clip
+    ("NTS 1", "https://stream-relay-geo.ntslive.net/stream",
+     "NTS", "live channel 1"),
+    ("NTS 2", "https://stream-relay-geo.ntslive.net/stream2",
+     "NTS", "live channel 2"),
+    ("Poolside", "https://stream-mixtape-geo.ntslive.net/mixtape4",
+     "NTS", "balearic & boogie"),
+    ("Slow Focus", "https://stream-mixtape-geo.ntslive.net/mixtape",
+     "NTS", "ambient, drone, ragas"),
+    ("Low Key", "https://stream-mixtape-geo.ntslive.net/mixtape2",
+     "NTS", "lo-fi hip-hop & R&B"),
+    ("Memory Lane", "https://stream-mixtape-geo.ntslive.net/mixtape6",
+     "NTS", "psychedelia"),
+    ("4 To The Floor", "https://stream-mixtape-geo.ntslive.net/mixtape5",
+     "NTS", "house & techno"),
+    ("Island Time", "https://stream-mixtape-geo.ntslive.net/mixtape21",
+     "NTS", "reggae & dub"),
+    ("The Tube", "https://stream-mixtape-geo.ntslive.net/mixtape26",
+     "NTS", "post-punk & minimal"),
+    ("Sheet Music", "https://stream-mixtape-geo.ntslive.net/mixtape35",
+     "NTS", "classical & modern"),
+    ("Feelings", "https://stream-mixtape-geo.ntslive.net/mixtape27",
+     "NTS", "soul, gospel, boogie"),
+    ("Expansions", "https://stream-mixtape-geo.ntslive.net/mixtape3",
+     "NTS", "jazz, expanded"),
+    ("Rap House", "https://stream-mixtape-geo.ntslive.net/mixtape22",
+     "NTS", "808s & champagne"),
+    ("Labyrinth", "https://stream-mixtape-geo.ntslive.net/mixtape31",
+     "NTS", "enter the void"),
+    ("Sweat", "https://stream-mixtape-geo.ntslive.net/mixtape24",
+     "NTS", "global party music"),
+    ("Otaku", "https://stream-mixtape-geo.ntslive.net/mixtape36",
+     "NTS", "game & anime OSTs"),
+    ("The Pit", "https://stream-mixtape-geo.ntslive.net/mixtape34",
+     "NTS", "ancient metal bards"),
+    ("Field Recordings", "https://stream-mixtape-geo.ntslive.net/mixtape23",
+     "NTS", "natural ambience"),
 ]
+
+
+def radio_groups():
+    """{group name: [station index, ...]} in declaration order."""
+    out = {}
+    for i, st in enumerate(RADIO_STATIONS):
+        if st[2]:
+            out.setdefault(st[2], []).append(i)
+    return out
 
 
 class RadioAudio:
@@ -392,7 +489,7 @@ class RadioAudio:
         self._pending = (time.time() + 0.35, clip_path)
 
     def _tune(self, clip_path):
-        name, url = RADIO_STATIONS[self.station_idx]
+        name, url = RADIO_STATIONS[self.station_idx][:2]
         self.stop()
         self.current_path = None
         if name == "clip":
@@ -651,26 +748,79 @@ def _find_ffmpeg():
     return home_ff if os.path.exists(home_ff) else None
 
 
+def _crush_label(level):
+    """Name the level by what it does, not by libjpeg's q number."""
+    if level <= 0:
+        return "off"
+    q, gens = _FFClip.CRUSH[level]
+    return "q%d" % q if gens == 1 else "q%d, saved %dx" % (q, gens)
+
+
 class _FFClip:
     """Looping realtime rawvideo pipe from ffmpeg — clip decode without
     OpenCV. -re paces decode to wall-clock so clip video stays in step with
     its audio; we read non-blocking and show the newest complete frame,
     dropping any we're too slow for."""
 
-    def __init__(self, path, w, h, ffmpeg):
+    # Real JPEG, not an impression of one — libjpeg does the damage in its
+    # own process. Each level is (quality, generations). ffmpeg's mjpeg
+    # quality bottoms out at 31, so harder levels re-encode what is already
+    # a crushed JPEG: generation loss, the way an image looks after being
+    # saved and re-saved. Every level stays at full resolution, so what you
+    # see is blocking and ringing and not a rescale blur wearing its coat.
+    CRUSH = [None, (24, 1), (31, 1), (31, 2), (31, 3), (31, 4)]
+
+    # crushed frames are tiny, and left to probe, the decoder waits to fill
+    # its default probesize before emitting anything — which takes most of a
+    # minute and looks exactly like the source having died
+    JPEG_IN = ["-f", "mjpeg", "-framerate", "30",
+               "-probesize", "32", "-analyzeduration", "0"]
+
+    def __init__(self, path, w, h, ffmpeg, crush=0):
         import subprocess
         import fcntl
         self.frame_size = w * h * 3
+        self.chain = []          # every process spawned, in spawn order
         vf = ("scale=%d:%d:force_original_aspect_ratio=increase,"
               "crop=%d:%d,vflip" % (w, h, w, h))
+        quiet = [ffmpeg, "-loglevel", "quiet", "-skip_loop_filter", "all"]
+        step = self.CRUSH[crush] if 0 < crush < len(self.CRUSH) else None
+
+        feed = None
+        if step is not None:
+            q, gens = step
+            # raw mjpeg: literally one JPEG file after another. mpegts takes
+            # the mux without complaint and then decodes to nothing at all,
+            # which is a quiet way to lose the picture entirely.
+            jpeg_out = ["-c:v", "mjpeg", "-q:v", str(q),
+                        "-pix_fmt", "yuvj420p", "-f", "mjpeg", "pipe:1"]
+            first = subprocess.Popen(quiet + ["-re", "-i", path] + jpeg_out,
+                                     stdout=subprocess.PIPE,
+                                     bufsize=self.frame_size)
+            self.chain.append(first)
+            feed = first.stdout
+            for _ in range(gens - 1):       # each pass is another real save
+                nxt = subprocess.Popen(
+                    quiet + self.JPEG_IN + ["-i", "pipe:0"] + jpeg_out,
+                    stdin=feed, stdout=subprocess.PIPE,
+                    bufsize=self.frame_size)
+                feed.close()                # the child owns it now
+                self.chain.append(nxt)
+                feed = nxt.stdout
+
         self.proc = subprocess.Popen(
-            [ffmpeg, "-loglevel", "quiet", "-skip_loop_filter", "all",
-             "-re", "-i", path,
-             "-f", "rawvideo", "-pix_fmt", "rgb24", "-vf", vf, "pipe:1"],
-            stdout=subprocess.PIPE, bufsize=self.frame_size * 4)
+            quiet + (self.JPEG_IN if feed else ["-re"])
+            + ["-i", "pipe:0" if feed else path,
+               "-f", "rawvideo", "-pix_fmt", "rgb24", "-vf", vf, "pipe:1"],
+            stdin=feed, stdout=subprocess.PIPE, bufsize=self.frame_size * 4)
+        if feed is not None:
+            feed.close()     # holding it open here would keep the pipe from
+        self.chain.append(self.proc)              # ever reaching end-of-file
         fl = fcntl.fcntl(self.proc.stdout, fcntl.F_GETFL)
         fcntl.fcntl(self.proc.stdout, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        self._buf = b""
+        # a bytearray grows and trims in place; concatenating bytes would
+        # copy the whole backlog every frame
+        self._buf = bytearray()
 
     def read(self):
         """Newest complete frame, or None if nothing new arrived."""
@@ -685,8 +835,9 @@ class _FFClip:
         nf = len(self._buf) // self.frame_size
         if nf == 0:
             return None
-        frame = self._buf[(nf - 1) * self.frame_size:nf * self.frame_size]
-        self._buf = self._buf[nf * self.frame_size:]
+        end = nf * self.frame_size
+        frame = bytes(memoryview(self._buf)[end - self.frame_size:end])
+        del self._buf[:end]
         return frame
 
     def done(self):
@@ -695,9 +846,16 @@ class _FFClip:
                 and len(self._buf) < self.frame_size)
 
     def close(self):
+        # source end first, then downstream: killing the reader while a
+        # writer is still going leaves it blocked on a pipe nobody drains,
+        # and it would sit there holding a core until the app exits
+        for p in self.chain:
+            try:
+                p.kill()
+                p.wait(timeout=2)
+            except Exception:
+                pass
         try:
-            self.proc.kill()
-            self.proc.wait(timeout=2)
             self.proc.stdout.close()
         except Exception:
             pass
@@ -724,8 +882,11 @@ class Sources:
         self._ffmpeg = _find_ffmpeg()
         self._ff = None
         self._ff_path = None
+        self.crush = 0          # real-JPEG level applied to clips on the way in
+        self._ff_crush = 0
         self.slots = self._scan()
         self.slot_idx = 0
+        self._held = False      # freeze holds the picture, not the decoder
 
     def _cv2(self):
         try:
@@ -738,17 +899,29 @@ class Sources:
             return None
 
     def _scan(self):
+        """Every pack's clips, not just the current one — the video library
+        is a live choice that outlives whichever effect deck is loaded."""
         import glob
         slots = [("gen", None)]
         has_cv2 = self._cv2() is not None
         if has_cv2 or self._ffmpeg:
-            clips = (sorted(glob.glob(os.path.join(self.clips_dir, "*.mp4"))) +
-                     sorted(glob.glob(os.path.join(self.clips_dir, "*", "*.mp4"))))
-            for p in clips:
-                slots.append(("clip", p))
+            own = os.path.dirname(self.clips_dir.rstrip(os.sep))
+            dirs = [self.clips_dir]      # current pack first
+            dirs += [d for d in sorted(glob.glob(
+                os.path.join(ROOT, "packs", "*", "clips")))
+                if os.path.dirname(d.rstrip(os.sep)) != own]
+            for d in dirs:
+                for p in (sorted(glob.glob(os.path.join(d, "*.mp4"))) +
+                          sorted(glob.glob(os.path.join(d, "*", "*.mp4")))):
+                    slots.append(("clip", p))
         if has_cv2:
             slots.append(("cam", None))
         return slots
+
+    @staticmethod
+    def _collection_of(path):
+        folder = os.path.basename(os.path.dirname(path))
+        return "misc" if folder == "clips" else folder
 
     def collections(self):
         """Ordered {collection_name: [slot indices]} — subfolder per
@@ -757,9 +930,7 @@ class Sources:
         for i, (k, p) in enumerate(self.slots):
             if k != "clip":
                 continue
-            rel = os.path.relpath(p, self.clips_dir)
-            col = os.path.dirname(rel) or "misc"
-            cols.setdefault(col, []).append(i)
+            cols.setdefault(self._collection_of(p), []).append(i)
         return cols
 
     @property
@@ -801,9 +972,15 @@ class Sources:
         self.slot_idx = (self.slot_idx + delta) % len(self.slots)
         self._post_switch()
 
+    def hold(self, flag):
+        """Hold the picture on the current frame. The decoder keeps running
+        and its frames are dropped, so sound never stops and letting go
+        rejoins the clip where it actually is now."""
+        self._held = flag
+
     def pause(self, flag):
-        """Freeze/unfreeze the clip decoder in place (SIGSTOP keeps the
-        exact moment; SIGCONT resumes in sync)."""
+        """Stop the clip decoder dead (SIGSTOP keeps the exact moment).
+        Unused by freeze — that holds the picture instead."""
         import signal
         if self._ff is not None:
             try:
@@ -845,13 +1022,16 @@ class Sources:
             if self._ffmpeg is None:
                 self.slot_idx = 0
                 return False
-            if self._ff is None or self._ff_path != path:
+            if (self._ff is None or self._ff_path != path
+                    or self._ff_crush != self.crush):
                 if self._ff is not None:
                     self._ff.close()
-                self._ff = _FFClip(path, self.w, self.h, self._ffmpeg)
+                self._ff = _FFClip(path, self.w, self.h, self._ffmpeg,
+                                   self.crush)
                 self._ff_path = path
+                self._ff_crush = self.crush
             raw = self._ff.read()
-            if raw is not None:  # None = no new frame yet; keep the last one
+            if raw is not None and not self._held:  # None = no new frame yet
                 upload_raw(self.tex, self.w, self.h, raw)
             elif self._ff.done():
                 self.advance()   # video over: next in the collection
@@ -884,6 +1064,8 @@ class Sources:
             ok, frame = self._cam.read()
             if not ok:
                 return False
+        if self._held:      # decoded and dropped: the picture stays put
+            return True
         frame = cv2.resize(frame, (self.w, self.h))
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         upload_raw(self.tex, self.w, self.h,
@@ -895,7 +1077,8 @@ class Sources:
 # Instrument
 # --------------------------------------------------------------------------
 class Instrument:
-    PARAM_ROWS = ["x0", "x1", "x2", "speed", "src", "aud"]
+    PARAM_ROWS = ["x0", "x1", "x2", "x3", "speed"]
+    MAX_LAYERS = 5           # effects in one chain (each costs a full pass)
 
     def __init__(self, plat, args):
         self.plat = plat
@@ -971,7 +1154,11 @@ class Instrument:
         self._menu_key = None
         self.prev_tex = make_texture(self.w, self.h, bytes(self.w * self.h * 3))
         self.gen_tex = make_texture(self.w, self.h)
-        self.chain_tex = make_texture(self.w, self.h)  # inter-layer buffer
+        # two inter-layer buffers, used alternately: with one, a 3-deep chain
+        # samples a texture and then copies into it in the same frame, and
+        # the driver has to stall or ghost it to resolve the hazard
+        self.chain_tex = [make_texture(self.w, self.h),
+                          make_texture(self.w, self.h)]
         # delay line: ring of past output frames (u_tex2 tap, ~0.8s reach)
         self.DELAY_N = 16
         self.delay_ring = [make_texture(self.w, self.h,
@@ -983,7 +1170,7 @@ class Instrument:
         self.atlas = make_texture(aw, ah, atlas_raw)
         self.bayer = make_bayer_texture()
 
-        self.strip_h = 108       # header + 3 layer rows + hint
+        self.strip_h = 150       # two rows per effect, plus the status line
         self._ov_used = 44
         self.help_h = 196
         self.overlay_tex = make_texture(self.w, self.strip_h)
@@ -992,6 +1179,8 @@ class Instrument:
         self._overlay_key = None
         self._help_key = None
         self._toast_until = 0.0     # hidden mode: flash the bar after a change
+        self.batt = battery.Gauge()
+        self.low_batt = False
         self.fps_w, self.fps_h = 64, 22
         self.fps_tex = make_texture(self.fps_w, self.fps_h)
         self._fps = 0.0
@@ -1014,15 +1203,11 @@ class Instrument:
             with open(path) as f:
                 pl = json.load(f)
         for step in pl["steps"]:
-            step.setdefault("x", [0.5, 0.5, 0.5])
+            step.setdefault("x", [0.5, 0.5, 0.5, 0.5])
             step.setdefault("speed", 0.5)
             step.setdefault("lfo", [False, False, False])
-            while len(step["lfo"]) < 4:      # 4th slot = speed ("auto" mode)
-                step["lfo"].append(False)
             step.setdefault("lfoband", [3, 3, 3, 3])  # 3=ALL, 0/1/2=L/M/H
-            while len(step["lfoband"]) < 4:
-                step["lfoband"].append(3)
-            step["x"] = [float(v) for v in step["x"]]
+            _migrate_slots(step)
         return pl
 
     def cur_step(self):
@@ -1116,9 +1301,8 @@ class Instrument:
                     self.pack_dir, "shaders", "_source_plasma.frag"))
                 self.overlay_prog = Program(os.path.join(
                     self.pack_dir, "shaders", "_overlay.frag"))
-                self.sources = Sources(self.w, self.h,
-                                       os.path.join(self.pack_dir, "clips"),
-                                       self.src_dims)
+                # the video library is global and stays put: swapping decks
+                # must never take the playing video with it
                 self.deck_idx = 0
                 self._load_decks()
             for step in self.playlist["steps"]:
@@ -1136,27 +1320,48 @@ class Instrument:
         old_path = os.path.join(self.pack_dir, "playlists", "deck.json")
         self.decks = [{"name": "DECK 1", "scenes": []}]
         self.deck_sel = 0
+        self._decks_ok = True
+        # an empty setlist is never something anyone asked for — it only
+        # happens when a write died partway — so put the newest good copy
+        # back before reading, rather than booting into a blank deck
+        came_from = deckvault.restore_if_empty(self.decks_path)
+        if came_from:
+            print("decks restored from", os.path.basename(came_from))
         try:
-            if os.path.exists(self.decks_path):
+            # an empty file is "no decks yet", not corruption — otherwise a
+            # zero-byte file would lock saving off forever
+            if (os.path.exists(self.decks_path)
+                    and os.path.getsize(self.decks_path) > 0):
                 with open(self.decks_path) as f:
-                    d = json.load(f)
+                    text = f.read()
+                d = json.loads(text)
                 if d.get("decks"):
                     self.decks = d["decks"]
                 self.deck_sel = min(d.get("active", 0), len(self.decks) - 1)
+                # a copy of what was on disk, taken before the engine has
+                # had any chance to write over it
+                deckvault.snapshot(self.decks_path, text, force=True)
             elif os.path.exists(old_path):
                 with open(old_path) as f:
                     steps = json.load(f).get("steps", [])
                 if steps:
                     self.decks = [{"name": "DECK 1", "scenes": steps}]
+            self._decks_ok = True
         except Exception as exc:
-            print("deck load failed:", exc)
+            # the file exists but we could not read it: never write over it,
+            # or a moment's bad parse costs someone their setlist
+            print("deck load failed:", exc, "— saves disabled to protect it")
+            self._decks_ok = False
         for dk in self.decks:
             dk.setdefault("name", "DECK")
             dk.setdefault("scenes", [])
             for sc in dk["scenes"]:
-                sc.setdefault("lfo", [False] * 4)
-                while len(sc["lfo"]) < 4:
-                    sc["lfo"].append(False)
+                # layers are steps too: miss them and they keep 3 params
+                # while the engine reads 4 — an IndexError mid-render
+                for st in [sc] + list(sc.get("layers", [])):
+                    st.setdefault("x", [0.5, 0.5, 0.5, 0.5])
+                    st.setdefault("speed", 0.5)
+                    _migrate_slots(st)
 
     @property
     def deck(self):
@@ -1168,9 +1373,33 @@ class Instrument:
         self.decks[self.deck_sel]["scenes"] = list(scenes)
 
     def _save_deck(self):
-        with open(self.decks_path, "w") as f:
-            json.dump({"active": self.deck_sel, "decks": self.decks},
-                      f, indent=2)
+        """Write via a temp file and rename. Opening the real file "w"
+        truncates it first, so a crash or a yanked battery between that
+        and the write leaves an empty setlist — which is exactly how one
+        got lost. Rename is atomic: the old file stands until the new one
+        is complete on disk."""
+        if not self._decks_ok:
+            print("not saving decks: the file on disk did not parse")
+            return
+        text = json.dumps({"active": self.deck_sel, "decks": self.decks},
+                          indent=2)
+        tmp = self.decks_path + ".tmp"
+        try:
+            with open(tmp, "w") as f:
+                f.write(text)
+                f.flush()
+                os.fsync(f.fileno())
+            if os.path.exists(self.decks_path):     # keep one generation
+                shutil.copy2(self.decks_path, self.decks_path + ".bak")
+            os.replace(tmp, self.decks_path)
+        except Exception as exc:
+            print("deck save failed:", exc)
+            return
+        # Both are off the hot path: the snapshot is rate-limited to one every
+        # few minutes, and the cloud copy hands off to a background thread, so
+        # a slow hotspot can never stall the render loop.
+        deckvault.snapshot(self.decks_path, text)
+        deckvault.cloud_push(os.path.basename(self.pack_dir), text)
 
     def step(self, delta):
         self.layer_focus = 0
@@ -1185,11 +1414,7 @@ class Instrument:
     def nudge(self, delta):
         s = self.edit_step()
         row = self.PARAM_ROWS[self.param_row]
-        if row == "src":
-            self.sources.cycle(1 if delta > 0 else -1)
-        elif row == "aud":
-            self.radio.cycle(1 if delta > 0 else -1, self.current_clip_path())
-        elif row == "speed":
+        if row == "speed":
             s["speed"] = min(1.0, max(0.0, s["speed"] + delta))
         else:
             i = int(row[1])
@@ -1239,12 +1464,28 @@ class Instrument:
             for name, idxs in cols.items():
                 rows.append(("vcol", name, "%s  (%d videos)" %
                              (name, len(idxs)), cur in idxs))
+            rows.append(("vcrush", None, "jpeg crush: %s"
+                         % _crush_label(self.sources.crush),
+                         self.sources.crush > 0))
         elif key == "audio":
-            labels = {"off": "no audio", "clip": "video's own sound",
-                      "NTS1": "NTS 1 radio", "NTS2": "NTS 2 radio"}
-            for i, (name, _) in enumerate(RADIO_STATIONS):
-                rows.append(("aud", i, labels.get(name, name),
-                             i == self.radio.station_idx))
+            labels = {"off": "no audio", "clip": "video's own sound"}
+            groups = radio_groups()
+            if self.menu_level == 2 and self.menu_col in groups:
+                for i in groups[self.menu_col]:
+                    name, _, _, blurb = RADIO_STATIONS[i]
+                    rows.append(("aud", i, "%-16s %s" % (name, blurb),
+                                 i == self.radio.station_idx))
+            else:
+                for i, st in enumerate(RADIO_STATIONS):
+                    if st[2]:
+                        continue            # lives in its own submenu
+                    rows.append(("aud", i, labels.get(st[0], st[0]),
+                                 i == self.radio.station_idx))
+                for g, idxs in groups.items():
+                    # mark the folder when the playing station is inside it,
+                    # so the current choice is never hidden a level down
+                    rows.append(("acol", g, "%s  (%d streams)" % (g, len(idxs)),
+                                 self.radio.station_idx in idxs))
         elif key == "output":
             outs = ["screen only", "to mixer (laptop)", "record to SD",
                     "go live (YouTube)" +
@@ -1267,10 +1508,11 @@ class Instrument:
                 di = self.menu_col
                 for si, sc in enumerate(self.decks[di]["scenes"]):
                     lfo = "~" if any(sc.get("lfo", [])) else ""
-                    # full chain, top layer first, e.g. "ascii+delay+waaave"
+                    # full chain in signal order: first layer first, live
+                    # effect last, e.g. "waaave+delay+ascii"
                     shads = "+".join(
-                        [sc["shader"]] +
-                        [l["shader"] for l in reversed(sc.get("layers", []))])
+                        [l["shader"] for l in sc.get("layers", [])] +
+                        [sc["shader"]])
                     if sc.get("name"):
                         body = "%s  (%s%s)" % (sc["name"], shads, lfo)
                     else:
@@ -1433,7 +1675,7 @@ class Instrument:
                 sub = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(sub) if r[3]), 0)
-            elif kind == "vcol":
+            elif kind in ("vcol", "acol"):
                 self.menu_level = 2
                 self.menu_col = i          # i is the collection name here
                 sub = self._menu_rows()
@@ -1449,10 +1691,14 @@ class Instrument:
                 self._set_output(i)
             elif kind == "outui":
                 self.output_ui = not self.output_ui
+            elif kind == "vcrush":
+                self.sources.crush = ((self.sources.crush + 1)
+                                      % len(_FFClip.CRUSH))
             elif kind == "set":
                 sets = self.list_sets()
                 if i < len(sets):
                     self.load_set(sets[i][0], sets[i][1])
+                    self.menu_open = False   # picked a deck: back to video
             elif kind == "deckmode":
                 self.deck_mode = not self.deck_mode
             elif kind == "deckopen":
@@ -1493,9 +1739,8 @@ class Instrument:
         elif ev == "randomize":  # B = back / close
             if self.menu_level == 2:
                 self.menu_level = 1
-                back_kind = ("deckopen"
-                             if self.MENU_CATS[self.menu_cat][0] == "deck"
-                             else "vcol")
+                back_kind = {"deck": "deckopen", "audio": "acol"}.get(
+                    self.MENU_CATS[self.menu_cat][0], "vcol")
                 rows = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(rows)
@@ -1523,8 +1768,8 @@ class Instrument:
         if self.menu_open:
             return self._menu_handle(ev)
         if self.overlay_mode == 2 and ev in self.TOAST_EVENTS:
-            self._toast_until = time.time() + 2.0
-        elif ev == "prev":
+            self._toast_until = time.time() + 2.0   # flash the bar back...
+        if ev == "prev":                            # ...and still act on it
             self.step(-1)
         elif ev == "next":
             self.step(+1)
@@ -1551,13 +1796,13 @@ class Instrument:
         elif ev == "randomize":
             import random
             s = self.edit_step()
-            s["x"] = [round(random.random(), 2) for _ in range(3)]
+            s["x"] = [round(random.random(), 2) for _ in range(4)]
         elif ev == "layer_add":
             import copy
             if not (self.deck and self.deck_mode):
                 self.layers.append(copy.deepcopy(self.cur_step()))
-                if len(self.layers) > 2:      # cap chain at 3 total
-                    self.layers.pop(0)
+                if len(self.layers) > self.MAX_LAYERS - 1:
+                    self.layers.pop(0)        # oldest falls off the bottom
                 self.layer_focus = 0
         elif ev == "layer_clear":   # Sel+B: remove the focused layer
             # in deck play mode the stack belongs to the scene itself
@@ -1569,8 +1814,18 @@ class Instrument:
                     if l is focused:
                         del lst[i]
                         break
-                else:               # focus was the live effect: peel newest
-                    lst.pop()
+                else:   # focus on the live effect: drop it — the newest
+                        # layer un-freezes and becomes the live effect
+                    live = self.cur_step()
+                    top = lst.pop()
+                    live["shader"] = top["shader"]
+                    live["x"] = top["x"]
+                    live["speed"] = top["speed"]
+                    live["lfo"] = top.get("lfo", [False] * 5)
+                    live["lfoband"] = top.get("lfoband", [3] * 5)
+                    self._ensure_program(live["shader"])
+                    if not self._row_ok(self.param_row):
+                        self.param_row = 2
             self.layer_focus = 0
         elif ev == "layer_focus_up":     # up = toward the top layer,
             self.layer_focus = max(0, self.layer_focus - 1)
@@ -1583,21 +1838,21 @@ class Instrument:
                     self._ensure_program(
                         self.deck[self.deck_idx % len(self.deck)]["shader"])
         elif ev == "freeze":
+            # the picture holds, the music plays on: the clip keeps decoding
+            # underneath, so releasing the freeze lands back in time with it
             self.frozen = not self.frozen
-            self.sources.pause(self.frozen)     # hold the video frame
-            if self.radio.is_clip:              # and its sound, in sync
-                self.radio.pause(self.frozen)   # (live radio keeps playing)
+            self.sources.hold(self.frozen)
         elif ev == "lfo":
-            if self.param_row < 4:  # any x param or speed ("auto")
+            if self.param_row < 5:  # any x param or speed ("auto")
                 s = self.edit_step()
-                s.setdefault("lfo", [False] * 4)
+                s.setdefault("lfo", [False] * 5)
                 s["lfo"][self.param_row] = not s["lfo"][self.param_row]
         elif ev in ("lfoband_up", "lfoband_down"):
-            if self.param_row < 4:
+            if self.param_row < 5:
                 s = self.edit_step()
-                s.setdefault("lfo", [False] * 4)
-                lb = s.setdefault("lfoband", [3, 3, 3, 3])
-                while len(lb) < 4:
+                s.setdefault("lfo", [False] * 5)
+                lb = s.setdefault("lfoband", [3] * 5)
+                while len(lb) < 5:
                     lb.append(3)
                 delta = 1 if ev == "lfoband_up" else -1
                 lb[self.param_row] = (lb[self.param_row] + delta) % 4
@@ -1678,10 +1933,10 @@ class Instrument:
         import math
         prog.set1f("u_time", self.t)
         prog.set2f("u_resolution", self.w, self.h)
-        lb = step.get("lfoband", [3, 3, 3, 3])
-        for i in range(3):
+        lb = step.get("lfoband", [3] * 5)
+        for i in range(4):
             v = step["x"][i]
-            if step.get("lfo", [False] * 4)[i]:
+            if step.get("lfo", [False] * 5)[i]:
                 b = lb[i] if i < len(lb) else 3
                 if self.radio.active:
                     v += 0.55 * self._band_value(b) - 0.1
@@ -1703,12 +1958,21 @@ class Instrument:
     def _get_meta(self, name):
         if name not in self.meta:
             meta = {"desc": name,
-                    "params": [{"name": "x%d" % i, "help": ""} for i in range(3)]}
-            side = os.path.join(self.pack_dir, "shaders", name + ".json")
-            if os.path.exists(side):
+                    "params": [{"name": "x%d" % i, "help": ""} for i in range(4)]}
+            # current pack first, then any pack — the same search order
+            # _ensure_program uses, so a shader borrowed from another pack
+            # keeps its knob names instead of falling back to x0..x3
+            import glob
+            sides = [os.path.join(self.pack_dir, "shaders", name + ".json")]
+            sides += sorted(glob.glob(os.path.join(ROOT, "packs", "*",
+                                                   "shaders", name + ".json")))
+            for side in sides:
+                if not os.path.exists(side):
+                    continue
                 try:
                     with open(side) as f:
                         meta.update(json.load(f))
+                    break
                 except Exception:
                     pass
             self.meta[name] = meta
@@ -1731,67 +1995,115 @@ class Instrument:
         prog = self.programs.get(step["shader"])
         return prog is None or getattr(prog, "uses_time", True)
 
-    def _row_ok(self, idx):
-        """Speed row is skipped for effects that never read the clock."""
-        return idx != 3 or self._has_time(self.edit_step())
+    def _has_x3(self, step):
+        """Only shaders that declare u_x3 get a 4th knob — the rest keep
+        the 3-param recurBOY layout and show no dead slot."""
+        prog = self.programs.get(step["shader"])
+        return prog is not None and getattr(prog, "uses_x3", False)
+
+    def _has_audio(self, step):
+        """True when this effect listens to the sound that is playing."""
+        prog = self.programs.get(step["shader"])
+        return prog is not None and getattr(prog, "uses_audio", False)
+
+    def _row_ok(self, idx, step=None):
+        """Speed row is skipped for effects that never read the clock.
+        Defaults to the focused step, but every layer draws its own row now,
+        so it has to be askable about any of them."""
+        st = self.edit_step() if step is None else step
+        if idx == 3:
+            return self._has_x3(st)
+        return idx != 4 or self._has_time(st)
 
     def _step_summary(self, s):
         lfo = "~" if any(s.get("lfo", [])) else ""
-        return "%s%s %.2f %.2f %.2f spd %.2f" % (
-            s["shader"], lfo, s["x"][0], s["x"][1], s["x"][2], s["speed"])
+        aud = "♪" if self._has_audio(s) else ""     # DejaVuSansMono has
+        return "%s%s%s %.2f %.2f %.2f spd %.2f" % (      # it at the same 8px
+            s["shader"], lfo, aud,                       # advance as ASCII
+            s["x"][0], s["x"][1], s["x"][2], s["speed"])
+
+    PATCH_COLS = 39          # what fits across 320px at the full type size
+
+    # label width and decimal places, tried in order until the row fits
+    PATCH_FITS = ((4, 2), (3, 2), (2, 2), (2, 1))
+
+    def _patch_rows(self, st, is_focus):
+        """One line per effect: its name, then every knob with a label.
+
+        Name, four labelled values and a speed will not all fit in 39
+        columns at this size, so the row negotiates instead of always
+        sacrificing the same thing. Short-named effects keep four-letter
+        labels; longer ones give up label characters, then a decimal place.
+        The name only truncates when nothing else is left to give, because
+        the name is what you are actually looking for."""
+        names = self._param_names(st)
+        while len(names) < 4:        # sidecars from the 3-param era
+            names.append("x%d" % len(names))
+        names.append("spd")
+        lf = st.get("lfo", [False] * 5)
+        lb = st.get("lfoband", [3] * 5)
+        slots = [i for i in range(5) if self._row_ok(i, st)]
+        head = st["shader"] + ("♪" if self._has_audio(st) else "")
+
+        def build(width, dp):
+            bits = []
+            for i in slots:
+                val = st["x"][i] if i < 4 else st["speed"]
+                txt = ("s" if i == 4 else names[i][:width]) \
+                    + ("%.*f" % (dp, val)).lstrip("0")
+                if lf[i]:
+                    b = lb[i] if i < len(lb) else 3
+                    txt += "~" + ("" if b == 3 else "LMH"[b])
+                bits.append(txt)
+            return " ".join(bits)
+
+        for width, dp in self.PATCH_FITS:
+            tail = build(width, dp)
+            if len(head) + len(tail) + 3 <= self.PATCH_COLS:
+                break
+        else:
+            head = head[:max(3, self.PATCH_COLS - 3 - len(tail))]
+        # only the name carries the highlight. The values are reference, not
+        # navigation — picking one out competes with the thing you actually
+        # need to find at a glance, which is which effect you are standing on
+        return ("%s %s %s" % (">" if is_focus else " ", head, tail),)
 
     def update_overlay(self, step):
+        """The patch: every effect in the chain on its own row, the focused
+        one picked out by the same green bar the menu uses. No summary line
+        on top — it only ever repeated whichever row was already lit."""
         chain = self.chain()
         focused = self.edit_step()
-        step = focused
-        names = self._param_names(step) + ["spd"]
-        parts = []
-        lb = step.get("lfoband", [3, 3, 3, 3])
-        lf = step.get("lfo", [False] * 4)
-        has_time = self._has_time(step)
-        for i in range(4):
-            if i == 3 and not has_time:
-                continue            # static effect: no speed slot
-            label = names[i]
-            if lf[i]:
-                b = lb[i] if i < len(lb) else 3
-                label += "~" + ("" if b == 3 else "LMH"[b])
-            val = step["x"][i] if i < 3 else step["speed"]
-            fmt = "[%s %.2f]" if self.param_row == i else "%s %.2f"
-            parts.append(fmt % (label, val))
-        fmt = "[src %s]" if self.param_row == 4 else "src %s"
-        parts.append(fmt % self.sources.label)
-        fmt = "[aud %s]" if self.param_row == 5 else "aud %s"
-        parts.append(fmt % self.radio.label)
+        lines = []
+        for li in range(len(chain) - 1, -1, -1):   # screen order: top first
+            st = chain[li]
+            lines.extend(self._patch_rows(st, st is focused))
         flags = ("  FRZ" if self.frozen else "") + ("  PUNCH" if self.punch else "")
-        if self.deck and not self.deck_mode:
-            flags += "  BUILD"
+        flags += self.batt.label()
         if self.streamer is not None and not self.streamer.dead:
             flags += {1: "  MIX", 2: "  REC", 3: "  LIVE"}.get(self.output_idx, "")
         if self.deck and self.deck_mode:
             pos = "D%d/%d" % (self.deck_idx + 1, len(self.deck))
         else:
             pos = "%d/%d" % (self.step_idx + 1, len(self.playlist["steps"]))
-        fidx = len(chain) - 1 - min(self.layer_focus, len(chain) - 1)
-        shader = step["shader"]
-        if len(chain) > 1:
-            shader += "  (layer %d/%d)" % (fidx + 1, len(chain))
-        lines = ["%s %s  %s%s" % (pos, shader, "  ".join(parts), flags)]
-        if len(chain) > 1:
-            # screen order = chain order: top layer first, then deeper.
-            # the focused layer sits in its real position, marked >
-            for li in range(len(chain) - 1, -1, -1):
-                tag = "top" if li == len(chain) - 1 else "L%d" % (li + 1)
-                mark = ">" if chain[li] is focused else " "
-                lines.append("%s %s: %s" % (mark, tag,
-                                            self._step_summary(chain[li])))
-        lines.append("Select: what do these knobs do?"
-                     + ("   Sel+^v: pick layer" if len(chain) > 1 else ""))
+        lines.append("  %s%s" % (pos, flags))
+
+        cap = max(2, (self.strip_h - 10) // ROW_STEP)  # scroll like the menu,
+        total, top = len(lines), 0               # so a deep chain still shows
+        if total > cap:
+            # keep the focused pair together: anchor on its name row, never
+            # scroll to a position that shows values with no effect above them
+            fi = next((i for i, r in enumerate(lines) if r.startswith(">")), 0)
+            top = max(0, min(fi - (cap // 2 - cap % 2), total - cap))
+            lines = lines[top:top + cap]
         key = tuple(lines)
-        self._ov_used = 26 + 15 * (len(lines) - 1) + 6
+        self._ov_used = 4 + ROW_STEP * len(lines) + 6
         if key != self._overlay_key:
             self._overlay_key = key
-            raw = self.plat.text_image(lines, self.w, self.strip_h)
+            raw = self.plat.text_image(lines, self.w, self.strip_h,
+                                       body_px=HEAD_ROW_PX, header=False,
+                                       row_step=ROW_STEP,
+                                       scroll=(top, total))
             upload_raw(self.overlay_tex, self.w, self.strip_h, raw)
 
     def update_menu(self):
@@ -1804,13 +2116,15 @@ class Instrument:
             key = tuple(lines)
             if key != self._menu_key:
                 self._menu_key = key
-                raw = self.plat.text_image(lines, self.w, self.menu_h)
+                raw = self.plat.text_image(lines, self.w, self.menu_h,
+                                           body_px=HEAD_ROW_PX,
+                                           row_step=ROW_STEP)
                 upload_raw(self.menu_tex, self.w, self.menu_h, raw)
             return
         in_decks = self.MENU_CATS[self.menu_cat][0] == "deck"
         rows = self._menu_rows()
         self.menu_idx = min(self.menu_idx, max(0, len(rows) - 1))
-        max_rows = 18
+        max_rows = (self.menu_h - 26 - 6) // ROW_STEP   # from the real pitch
         top = max(0, min(self.menu_idx - max_rows // 2, len(rows) - max_rows))
         if self.menu_level == 0:
             lines = ["LOADER   A: open   Start: close"]
@@ -1846,26 +2160,33 @@ class Instrument:
         key = tuple(lines)
         if key != self._menu_key:
             self._menu_key = key
-            raw = self.plat.text_image(lines, self.w, self.menu_h)
+            raw = self.plat.text_image(lines, self.w, self.menu_h,
+                                       body_px=HEAD_ROW_PX,
+                                       row_step=ROW_STEP,
+                                       scroll=(top, len(rows)))
             upload_raw(self.menu_tex, self.w, self.menu_h, raw)
 
     def update_help(self, step):
         meta = self._get_meta(step["shader"])
         marker = lambda i: ">" if self.param_row == i else " "
-        lines = ["%s — %s" % (step["shader"], meta["desc"])]
-        for i, p in enumerate(meta["params"]):
+        lines = ["%s%s — %s" % (step["shader"],
+                                "♪" if self._has_audio(step) else "",
+                                meta["desc"])]
+        for i, p in enumerate(meta["params"][:4]):
+            if i == 3 and not self._has_x3(step):
+                continue        # sidecar lists a 4th param the shader lacks
             lfo = "  (LFO on)" if step["lfo"][i] else ""
             lines.append("%s %-7s %s%s" % (marker(i), p["name"], p["help"], lfo))
         if self._has_time(step):
-            lines.append("%s %-7s effect animation speed" % (marker(3), "spd"))
+            lines.append("%s %-7s effect animation speed" % (marker(4), "spd"))
         else:
             lines.append("  %-7s (this effect has no clock — slot hidden)"
                          % "spd")
-        lines.append("%s %-7s input: plasma / clip / camera" % (marker(4), "src"))
-        lines.append("%s %-7s audio: clip sound / NTS radio (LFOs follow it)"
-                     % (marker(5), "aud"))
+        if self._has_audio(step):   # explain the mark where it is first met
+            lines.append("  %-7s moves with the sound that is playing"
+                         % "♪")
         lines.append("dpad </>: pick control   dpad ^/v: turn it")
-        lines.append("A hold: punch  B: dice  Y: freeze video+time  X: LFO")
+        lines.append("A hold: punch  B: dice  Y: freeze picture  X: LFO")
         lines.append("hold X + ^v: LFO band all/low/mid/high (~ ~L ~M ~H)")
         lines.append("L/R: prev/next effect    Start: video/audio loader")
         lines.append("Sel+A: stack layer   Sel+B: remove focused layer")
@@ -1880,10 +2201,39 @@ class Instrument:
         import math
         if dt > 0:
             self._fps += (1.0 / dt - self._fps) * 0.08
+        now = time.time()
+        was_stage = self.batt.stage
+        self.batt.poll(now)
+        if self.batt.stage > was_stage >= 1:    # each step down: say so even
+            self._toast_until = now + 6.0       # with the UI hidden
+        self.low_batt = self.batt.low
+        if now - getattr(self, "_hb_t", 0) > 5.0:
+            self._hb_t = now
+            ch = self.chain()
+            # checksum the pixels we actually drew: if this stops changing
+            # while fps stays up, the engine is fine and the picture is not
+            try:
+                px = GL.glReadPixels(0, self.h // 2, self.w, 4,
+                                     GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
+                sig = sum(bytearray(px)) & 0xFFFFFF
+            except Exception as exc:
+                sig = -1
+                print("readback failed:", exc, flush=True)
+            err = 0
+            try:
+                err = GL.glGetError()
+            except Exception:
+                pass
+            print("hb fps=%.1f chain=%d [%s] frz=%d src=%s px=%06x glerr=0x%x "
+                  "rss=%dMB"
+                  % (self._fps, len(ch),
+                     "+".join(s["shader"] for s in ch), int(self.frozen),
+                     self.sources.label, sig & 0xFFFFFF, err, _rss_mb()),
+                  flush=True)
         step = self.cur_step()
         spd = step["speed"]
-        if step["lfo"][3]:                   # "auto": music drives the clock
-            b = step.get("lfoband", [3, 3, 3, 3])[3]
+        if step["lfo"][4]:                   # "auto": music drives the clock
+            b = step.get("lfoband", [3] * 5)[4]
             if self.radio.active:
                 spd = min(1.0, spd * 0.4 + self._band_value(b) * 0.9)
             else:
@@ -1917,8 +2267,7 @@ class Instrument:
             GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.w, self.h)
             src = self.gen_tex
         else:
-            if not self.frozen:
-                self.sources.update()
+            self.sources.update()   # keeps decoding while held, stays in sync
             src = self.sources.tex
 
         if self.deck and self.deck_mode:
@@ -1949,10 +2298,11 @@ class Instrument:
             prog.set_tex("u_tex3", 5, tap_half)   # half-depth ring tap
             self.draw_fullscreen()
             if li < len(chain) - 1:
-                GL.glBindTexture(GL.GL_TEXTURE_2D, self.chain_tex)
+                dst = self.chain_tex[li & 1]
+                GL.glBindTexture(GL.GL_TEXTURE_2D, dst)
                 GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0,
                                        self.w, self.h)
-                tex_in = self.chain_tex
+                tex_in = dst
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.prev_tex)
         GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.w, self.h)
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.delay_ring[self.delay_head])
