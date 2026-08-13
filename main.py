@@ -672,18 +672,29 @@ class Streamer:
             vcodec = ["-c:v", "h264_v4l2m2m", "-num_capture_buffers", "64"]
         else:
             vcodec = ["-c:v", "libx264", "-preset", "veryfast"]
-        # mixer rides the LAN: quality-targeted, capped at 6mbit.
-        # rtmp/file keep a fixed budget.
-        quality = (["-crf", "16", "-maxrate", "8000k", "-bufsize", "4000k"]
-                   if udp and "libx264" in vcodec else ["-b:v", "1200k"])
-        cmd += (["-map", "0:v", "-map", "1:a", "-vf", "vflip"] + vcodec +
+        # mixer rides the LAN: quality-targeted, capped at 6mbit. rtmp keeps
+        # a fixed upstream-friendly budget. Files answer to nobody's uplink —
+        # a recording is the master copy of a set, so it gets bitrate to
+        # spare (~35MB/min; the card holds hours).
+        if udp and "libx264" in vcodec:
+            quality = ["-crf", "16", "-maxrate", "8000k", "-bufsize", "4000k"]
+        elif to_file:
+            quality = ["-b:v", "4500k"]
+        else:
+            quality = ["-b:v", "1200k"]
+        # Wallclock stamps exist to balance INPUT reading (without them on
+        # both pipes, ffmpeg chased one input forever and recordings were
+        # 0 bytes). But they are burst-jittered, and letting aresample=async
+        # chase them stuffed and dropped samples audibly — recordings came
+        # out warbly. So after the inputs are read, both clocks are rebuilt
+        # smooth: audio purely from sample count (the PCM is continuous, so
+        # counting samples IS the correct clock), video zero-based on its
+        # first frame. Nothing is resampled, nothing warbles.
+        cmd += (["-map", "0:v", "-map", "1:a",
+                 "-vf", "vflip,setpts=PTS-STARTPTS"] + vcodec +
                 quality +
                 ["-g", str(fps * 2), "-pix_fmt", "yuv420p",
-                 # audio arrives in bursts (a whole tap or a padding block per
-                 # write) so wallclock stamps within a burst come out jumbled;
-                 # async resampling rebuilds one monotonic clock from them
-                 # instead of making the muxer interleave against garbage
-                 "-af", "aresample=async=1000",
+                 "-af", "asetpts=N/SR/TB",
                  "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-shortest"])
         # -shortest belongs on every destination, file included. It was moved
         # off the file path on the theory that it truncates a recording made
@@ -708,6 +719,12 @@ class Streamer:
             self._errlog.flush()
         except OSError:
             self._errlog = None
+        # one hardware encoder: if the previous take is still finalizing in
+        # its background thread, starting now would fight it for /dev/video11
+        prev = getattr(Streamer, "_finishing", None)
+        if prev is not None and prev.is_alive():
+            print("recorder: waiting for the previous take to finalize")
+            prev.join(timeout=125)
         self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                      stderr=self._errlog or None,
                                      pass_fds=(self._ar,))
@@ -777,13 +794,34 @@ class Streamer:
             pass
         try:
             self._q.put(None, timeout=1)
-            self._thread.join(timeout=3)
-            self.proc.wait(timeout=8)
         except Exception:
+            pass
+        # Finalizing is ffmpeg draining its backlog and writing the moov
+        # index, and at 0.78x realtime the backlog is real: a 76-second take
+        # needed well over the 8 seconds this used to allow, got killed
+        # mid-flush, and the file had no index — every byte present, nothing
+        # able to play it. Waiting here froze the instrument instead, so the
+        # wait moves to a thread and gets a budget that assumes the encoder
+        # is behind by a whole song.
+        import threading
+        proc, thread = self.proc, self._thread
+
+        def _finish():
+            thread.join(timeout=5)
             try:
-                self.proc.kill()
+                proc.wait(timeout=120)
+                print("recorder: finalized clean")
             except Exception:
-                pass
+                try:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                except Exception:
+                    pass
+                print("recorder: killed after 120s — recording has no index")
+
+        t = threading.Thread(target=_finish, daemon=True)
+        t.start()
+        Streamer._finishing = t
 
 
 def load_stream_cfg():
@@ -1206,6 +1244,7 @@ class Instrument:
         self.output_ui = False   # include the UI panels in streams/recordings
         self._aud_t = time.time()
         self._aud_owed = 0.0
+        self._aud_buf = bytearray()
         self._frame_no = 0
         self.menu_open = False
         self._del_arm = None    # pending delete awaiting Y confirm
@@ -1894,11 +1933,23 @@ class Instrument:
             s["x"] = [round(random.random(), 2) for _ in range(4)]
         elif ev == "layer_add":
             import copy
-            if not (self.deck and self.deck_mode):
+            if self.deck and self.deck_mode:
+                # the stack belongs to the scene, exactly as layer_clear
+                # already treats it: lock a copy of the scene's top effect
+                # so it can keep running while the top diverges. Blocking
+                # adds here made every patch feel capped at whatever depth
+                # it was saved with.
+                sc = self.cur_step()
+                lst = sc.setdefault("layers", [])
+                lst.append({k: copy.deepcopy(v) for k, v in sc.items()
+                            if k != "layers"})
+                if len(lst) > self.MAX_LAYERS - 1:
+                    lst.pop(0)                # oldest falls off the bottom
+            else:
                 self.layers.append(copy.deepcopy(self.cur_step()))
                 if len(self.layers) > self.MAX_LAYERS - 1:
                     self.layers.pop(0)        # oldest falls off the bottom
-                self.layer_focus = 0
+            self.layer_focus = 0
         elif ev == "layer_clear":   # Sel+B: remove the focused layer
             # in deck play mode the stack belongs to the scene itself
             lst = (self.cur_step().setdefault("layers", [])
@@ -1994,6 +2045,7 @@ class Instrument:
                                  self.w, self.h, 15, dest)
         self._aud_t = time.time()
         self._aud_owed = 0.0
+        self._aud_buf = bytearray()
         print("streaming to", dest.split("/")[2] if "://" in dest else dest)
 
     def draw_fullscreen(self):
@@ -2375,18 +2427,33 @@ class Instrument:
             self.radio.retune(self.current_clip_path())
         self.radio.update()
         if self.streamer is not None and not self.streamer.dead:
-            # mirror what's playing into the stream; pad silence when
-            # nothing plays so the muxer never stalls waiting for audio
+            # The stream's audio clock is pure sample count, so the only
+            # thing keeping sound aligned with the wallclock-stamped video
+            # is this governor: exactly (elapsed x rate) bytes out per tick.
+            # Tap bursts are real — every clip switch spawns a decoder that
+            # pre-rolls ~1.5s ahead of realtime — and pushing a burst
+            # straight through shoved all later audio that far off the
+            # picture (rec_06: +1.47s after one switch, while the switchless
+            # take before it was sample-accurate). Bursts queue here and
+            # play out at wallclock rate instead. Silence fills only after
+            # the queue has run dry a few ticks, then covers the whole
+            # deficit at once so the clock never falls behind by more.
             now = time.time()
-            self._aud_owed += (now - self._aud_t) * 44100.0  # 22050 * 2 B/s
+            self._aud_owed += (now - self._aud_t) * 44100.0  # 22050 Hz * 2 B
             self._aud_t = now
             if self.radio.tap:
-                self.streamer.push_audio(self.radio.tap)
-                self._aud_owed = max(0.0, self._aud_owed - len(self.radio.tap))
-            if self._aud_owed > 22050:          # starved > 0.5s
-                n = int(min(self._aud_owed, 44100.0)) & ~1
-                self.streamer.push_audio(b"\x00" * n)
-                self._aud_owed -= n
+                self._aud_buf += self.radio.tap
+                del self._aud_buf[:-441000]        # backlog cap: 10s
+            n = int(min(self._aud_owed, 88200.0)) & ~1   # catch-up <= 2s/tick
+            take = min(n, len(self._aud_buf))
+            if take:
+                self.streamer.push_audio(bytes(self._aud_buf[:take]))
+                del self._aud_buf[:take]
+                self._aud_owed -= take
+            if self._aud_owed > 6615:           # dry ~0.15s: it's real silence
+                pad = int(self._aud_owed) & ~1
+                self.streamer.push_audio(b"\x00" * pad)
+                self._aud_owed -= pad
 
         if self.sources.mode == "gen":
             self.source_prog.use()
