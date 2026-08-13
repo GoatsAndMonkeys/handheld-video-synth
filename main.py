@@ -45,9 +45,9 @@ ASCII_CHARS = " .:-=+*#%@"
 # One size for everything the menus and the patch view draw. There is no
 # reason for a row you read while performing to be smaller than the title
 # above it, and 320px carries 39 columns of it.
-HEAD_ROW_PX = 16    # 10px cell, 63 columns across the 640px surface —
-                    # the largest that still fits a 16-char effect name
-                    # beside five fully-spelled parameter labels
+HEAD_ROW_PX = 18    # ~11px cell, 58 columns across the 640px surface.
+                    # Up from 16: most rows still carry full labels, and
+                    # the fitting ladder trims the few that no longer do.
 ROW_STEP = HEAD_ROW_PX + 5   # bigger type needs more than the old 15px
                              # pitch, or rows lap the ones either side
 
@@ -2443,7 +2443,14 @@ class Instrument:
             self._aud_t = now
             if self.radio.tap:
                 self._aud_buf += self.radio.tap
-                del self._aud_buf[:-441000]        # backlog cap: 10s
+                # The queue must stay SHALLOW. Emission is pinned to
+                # realtime, so any backlog is a standing delay that never
+                # drains — one take came out seconds behind after a few
+                # clip switches, each stacking its pre-roll burst and the
+                # old clip's never-played tail into the queue. Dropping
+                # the oldest surplus keeps sync error bounded at ~0.3s
+                # (about the sound path's own latency) instead of growing.
+                del self._aud_buf[:-13230]         # cap: 0.3s
             n = int(min(self._aud_owed, 88200.0)) & ~1   # catch-up <= 2s/tick
             take = min(n, len(self._aud_buf))
             if take:

@@ -505,7 +505,8 @@ def _font(size):
 # than squaring them off. The hard-edged look survives without it — killing
 # the anti-aliasing is what does the work, not making the pixels bigger.
 SCALE = 1
-HEAD_PX = 14
+HEAD_PX = 18        # matches the row size — a title has no business being
+                    # smaller than the rows it heads
 BODY_PX = 11                # 7px advance: 44 columns, as before the restyle
 BG = (26, 112, 196)         # set-top blue, the bright saturated one
 FG = (245, 245, 250)        # body copy
