@@ -7,6 +7,10 @@ enough bitrate that decode never competes with the shader chain. Doing that
 by hand for eighty files is how mistakes get in, so this does it the same way
 every time and matches the encoding your existing collections already use.
 
+Whole videos by default. Pass --seconds to cut an excerpt instead; the
+existing collections on the card are 90-second cuts from before that was
+the default, which is why their lengths do not match anything new.
+
     python3 tools/ingest_clips.py lotto ~/Videos/lotto/*.mov
     python3 tools/ingest_clips.py lotto ~/Videos/*.mp4 --seconds 60 --start 30
     python3 tools/ingest_clips.py lotto ~/Videos/*.mp4 --deploy retropie.local
@@ -73,8 +77,8 @@ def main():
     ap.add_argument("collection", help="folder name, e.g. lotto")
     ap.add_argument("files", nargs="+", help="source videos")
     ap.add_argument("--pack", default="demo")
-    ap.add_argument("--seconds", type=int, default=90,
-                    help="excerpt length; 0 keeps the whole thing (default 90)")
+    ap.add_argument("--seconds", type=int, default=0,
+                    help="cut to this many seconds; 0 (default) keeps it whole")
     ap.add_argument("--start", type=int, default=0, help="seek before cutting")
     ap.add_argument("--deploy", metavar="HOST",
                     help="rsync the finished collection to the deck")
