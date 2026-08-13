@@ -1,9 +1,21 @@
 {
-  "desc": "encoder at the bottom of the quality slider",
+  "desc": "real DCT jpeg, quality on the floor",
   "params": [
-    {"name": "crush", "help": "quality — clean down to flat blocks"},
-    {"name": "block", "help": "size of the coefficient blocks"},
-    {"name": "ring", "help": "mosquito noise and edge overshoot"},
-    {"name": "bias", "help": "what gets thrown away: colour only <-> both (0.5) <-> luma only"}
+    {
+      "name": "quality",
+      "help": "quantiser step: clean down to one flat level per block"
+    },
+    {
+      "name": "block",
+      "help": "size of the transform block on screen"
+    },
+    {
+      "name": "colour",
+      "help": "chroma quantiser — colour marches across edges on its own grid"
+    },
+    {
+      "name": "ring",
+      "help": "spares the high-frequency terms: mosquito noise round hard edges"
+    }
   ]
 }
