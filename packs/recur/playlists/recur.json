@@ -1,0 +1,13 @@
+{
+  "name": "recur",
+  "credit": "cyberboy666 + contributors",
+  "steps": [
+    {"shader": "blend_add", "x": [0.6, 0.5, 0.5]},
+    {"shader": "luma_key", "x": [0.5, 0.75, 0.5]},
+    {"shader": "mix_lumaKey", "x": [0.5, 0.5, 0.35]},
+    {"shader": "wipe", "x": [0.35, 0.35, 0.5]},
+    {"shader": "add_mix", "x": [0.5, 0.75, 0.5]},
+    {"shader": "mix_lumaKey", "x": [0.7, 0.3, 0.9]},
+    {"shader": "wipe", "x": [0.6, 0.0, 0.5]}
+  ]
+}

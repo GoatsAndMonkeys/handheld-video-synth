@@ -1,0 +1,7 @@
+{
+  "desc": "hard luma key dropping feedback into the darks or the brights",
+  "params": [
+    {"name": "thresh", "help": "brightness cut where the key flips — low keys almost everything, high almost nothing"},
+    {"name": "side", "help": "above halfway the picture's brights fill with feedback; below, the key reads the feedback frame instead"}
+  ]
+}

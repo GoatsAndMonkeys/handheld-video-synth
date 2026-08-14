@@ -1,0 +1,9 @@
+{
+  "desc": "the frame folded into an n-sided kaleidoscope",
+  "params": [
+    {"name": "sides",  "help": "how many mirror sectors — 2 is a simple fold, 12 a tight mandala"},
+    {"name": "zoom",   "help": "pull the source wide or lean in close; bass breathes it"},
+    {"name": "spin",   "help": "how fast the whole pattern rotates — 0 holds still"},
+    {"name": "drift",  "help": "0 locks the mirror axis to centre; up it wanders slowly, keeping long runs alive"}
+  ]
+}

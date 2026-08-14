@@ -1,0 +1,9 @@
+{
+  "desc": "video flowing through invisible sine currents",
+  "params": [
+    {"name": "freq",   "help": "how tight the currents run — broad swells to fine ribbons"},
+    {"name": "warp",   "help": "how far the picture is pushed off course; bass leans on it, highs ripple it"},
+    {"name": "scroll", "help": "how fast the current flows past — 0 freezes the field in place"},
+    {"name": "swirl",  "help": "0 pushes sideways only; up mixes in a crossed vertical wave until it swirls in 2D"}
+  ]
+}

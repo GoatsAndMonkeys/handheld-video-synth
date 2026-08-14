@@ -1,0 +1,6 @@
+{
+  "name": "libretro shaders",
+  "artist": "libretro community",
+  "description": "analog display emulation ported from the libretro common-shaders collection: CRT scanlines and aperture mask, curved shadow-mask tube, LCD subpixel grid, LCD ghosting, interlaced field combing, composite TV-out bandwidth",
+  "version": 1
+}

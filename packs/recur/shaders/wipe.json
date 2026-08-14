@@ -1,0 +1,7 @@
+{
+  "desc": "corner wipe between the picture and the feedback frame",
+  "params": [
+    {"name": "wipe x", "help": "slides the left edge of the live-picture corner — past it the feedback frame shows"},
+    {"name": "wipe y", "help": "slides the bottom edge of the live-picture corner"}
+  ]
+}

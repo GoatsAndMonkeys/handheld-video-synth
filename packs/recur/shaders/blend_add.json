@@ -1,0 +1,6 @@
+{
+  "desc": "crossfade the picture against the feedback frame",
+  "params": [
+    {"name": "fade", "help": "0 all picture, 1 all feedback — up high it trails, at the very top it freezes"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "rolling sinusoid colour bands, hydra's first word",
+  "params": [
+    {"name": "freq",   "help": "how many bands across the screen — two wide bars up to a fine grating"},
+    {"name": "sync",   "help": "how fast the bands roll sideways; near zero they hang almost still"},
+    {"name": "offset", "help": "pulls red and blue out of phase — grey bands at 0, full RGB fringing up high"},
+    {"name": "video",  "help": "video shows through in the dark troughs between bands"}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "desc": "fold the frame back on itself",
+  "params": [
+    {
+      "name": "foldx",
+      "help": "where the horizontal fold sits"
+    },
+    {
+      "name": "foldy",
+      "help": "where the vertical fold sits"
+    }
+  ]
+}

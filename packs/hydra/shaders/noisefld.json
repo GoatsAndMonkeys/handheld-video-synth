@@ -1,0 +1,9 @@
+{
+  "desc": "drifting cloud of value noise, breathing with the level",
+  "params": [
+    {"name": "scale",  "help": "zoom of the noise — huge slow billows down to a fine boiling grain"},
+    {"name": "drift",  "help": "how fast the field wanders; bass kicks shove it around on top"},
+    {"name": "shape",  "help": "contrast on the cloud — soft grey haze at 0, hard inky blobs up high"},
+    {"name": "video",  "help": "video shows through the dark gaps between the clouds"}
+  ]
+}

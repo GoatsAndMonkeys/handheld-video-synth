@@ -1,0 +1,21 @@
+{
+  "desc": "luma-stepped false colour",
+  "params": [
+    {
+      "name": "steps",
+      "help": "how many colour bands"
+    },
+    {
+      "name": "hue",
+      "help": "band hue"
+    },
+    {
+      "name": "sat",
+      "help": "band saturation"
+    },
+    {
+      "name": "mix",
+      "help": "dry video <-> colourised"
+    }
+  ]
+}

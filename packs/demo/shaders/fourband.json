@@ -1,0 +1,21 @@
+{
+  "desc": "four-band false colour for filming bigfoot",
+  "params": [
+    {
+      "name": "edges",
+      "help": "slides the four cuts through the tones — carve the shadows fine or the highlights"
+    },
+    {
+      "name": "hue",
+      "help": "spins all four band colours around the wheel together"
+    },
+    {
+      "name": "fold",
+      "help": "each band folds back on itself — ramps at 0, full solarized tents at 1"
+    },
+    {
+      "name": "steep",
+      "help": "contrast inside each band — flat posters up to hard metallic ramps"
+    }
+  ]
+}

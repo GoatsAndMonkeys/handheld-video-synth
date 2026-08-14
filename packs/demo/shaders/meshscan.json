@@ -1,0 +1,21 @@
+{
+  "desc": "the picture rewoven as a glowing wire mesh",
+  "params": [
+    {
+      "name": "density",
+      "help": "threads per screen — loose net up to a tight weave"
+    },
+    {
+      "name": "depth",
+      "help": "how far brightness pushes the threads; the bass pumps it"
+    },
+    {
+      "name": "glow",
+      "help": "thread width and flare; the highs make the wire burn"
+    },
+    {
+      "name": "ground",
+      "help": "the flat video showing dimly behind the mesh"
+    }
+  ]
+}

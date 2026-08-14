@@ -1,0 +1,21 @@
+{
+  "desc": "interfering oscillators pooling into organic bands",
+  "params": [
+    {
+      "name": "scale",
+      "help": "size of the interference cells — broad pools down to fine ripple"
+    },
+    {
+      "name": "tangle",
+      "help": "how many oscillators join in — one clean wave up to five voices beating"
+    },
+    {
+      "name": "cycle",
+      "help": "colour spread across the field and how fast it rolls the wheel"
+    },
+    {
+      "name": "video",
+      "help": "crossfades the field toward the video"
+    }
+  ]
+}

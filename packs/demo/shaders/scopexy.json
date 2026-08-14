@@ -1,0 +1,21 @@
+{
+  "desc": "vector beam tracing rosettes onto slow phosphor",
+  "params": [
+    {
+      "name": "pattern",
+      "help": "gear ratio of the arms — circles fold into rosettes; also how far back the phosphor reaches"
+    },
+    {
+      "name": "beam",
+      "help": "beam brightness and width, hairline to hot"
+    },
+    {
+      "name": "persist",
+      "help": "how long the trace hangs on the tube before it dies"
+    },
+    {
+      "name": "video",
+      "help": "video shows through dimly behind the scope"
+    }
+  ]
+}

@@ -223,6 +223,46 @@
         0.4
       ],
       "speed": 0.5
+    },
+    {
+      "shader": "scopexy",
+      "x": [
+        0.45,
+        0.6,
+        0.65,
+        0.0
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "fourband",
+      "x": [
+        0.5,
+        0.3,
+        0.35,
+        0.55
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "meshscan",
+      "x": [
+        0.45,
+        0.55,
+        0.5,
+        0.2
+      ],
+      "speed": 0.5
+    },
+    {
+      "shader": "autolife",
+      "x": [
+        0.45,
+        0.55,
+        0.5,
+        0.0
+      ],
+      "speed": 0.5
     }
   ],
   "credit": "techniques: Andrei Jay"

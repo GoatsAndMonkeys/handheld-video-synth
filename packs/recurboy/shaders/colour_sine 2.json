@@ -1,0 +1,13 @@
+{
+  "desc": "channel sine tints",
+  "params": [
+    {
+      "name": "red",
+      "help": "red channel: off / sine wash / full"
+    },
+    {
+      "name": "green",
+      "help": "green channel: off / sine wash / full"
+    }
+  ]
+}

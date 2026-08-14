@@ -1,0 +1,8 @@
+{
+  "desc": "soft-edged luma key laying feedback into a brightness band",
+  "params": [
+    {"name": "luma", "help": "centre brightness of the band that gets replaced with feedback"},
+    {"name": "range", "help": "width of the keyed band — 0 keys nothing, full width swallows half the tonal range"},
+    {"name": "edge", "help": "softness at the band's edges — 0 is a hard cut, high values fade in and out"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "the frame tiled into a mirrored grid, rows sheared brick-wall",
+  "params": [
+    {"name": "across", "help": "tiles across the screen, 1 to 8"},
+    {"name": "down",   "help": "tiles down the screen, 1 to 8"},
+    {"name": "shear",  "help": "each row slides over by this much — halfway is brickwork; level nudges it with the music"},
+    {"name": "scroll", "help": "the whole tiling drifts diagonally — 0 holds it still"}
+  ]
+}

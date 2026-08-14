@@ -1,0 +1,9 @@
+{
+  "desc": "drifting cellular mosaic, walls lighting up between the cells",
+  "params": [
+    {"name": "scale", "help": "how many cells fill the screen — a few big plates down to a fine mosaic"},
+    {"name": "speed", "help": "how fast the cell points swim about inside their cells"},
+    {"name": "walls", "help": "flat colour plates at 0, glowing borders between cells up high"},
+    {"name": "video", "help": "video shows through wherever the mosaic runs dark"}
+  ]
+}

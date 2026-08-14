@@ -1,0 +1,7 @@
+{
+  "desc": "odd switch pitting picture brightness against feedback hue",
+  "params": [
+    {"name": "bias", "help": "tips the contest — 0 all picture, 1 all feedback, the middle flickers per pixel"},
+    {"name": "mode", "help": "switches between two upstream variants that are written identically — expect no change"}
+  ]
+}
