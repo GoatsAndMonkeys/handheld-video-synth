@@ -16,9 +16,9 @@ nothing here may block it. Losing a backup is a bad day; crashing the synth
 mid-set because a backup failed would be worse.
 
 Run directly to inspect or restore:
-    python3 deckvault.py list   packs/demo/playlists/decks.json
-    python3 deckvault.py restore packs/demo/playlists/decks.json
-    python3 deckvault.py restore packs/demo/playlists/decks.json --from-cloud
+    python3 deckvault.py list   packs/hvs80-synth/playlists/decks.json
+    python3 deckvault.py restore packs/hvs80-synth/playlists/decks.json
+    python3 deckvault.py restore packs/hvs80-synth/playlists/decks.json --from-cloud
 
 Python 3.7 compatible; stdlib only.
 """

@@ -47,7 +47,7 @@ packs/<name>/
 `_source_plasma.frag` (the built-in generative source, used when the video
 source is *plasma*) and `_overlay.frag` (blits the UI text panels) are engine
 infrastructure, not art. **A pack may omit them.** When a pack has no copy of
-its own, the engine falls back to `packs/demo/shaders/`. Ship your own only
+its own, the engine falls back to `packs/hvs80-synth/shaders/`. Ship your own only
 if you actually want a different generative source behind your effects —
 `_source_plasma.frag` sees the same uniforms as any other shader.
 `_overlay.frag` is a two-line blit with its own `u_rect` uniform and no
@@ -55,7 +55,7 @@ reason to differ; leave it out.
 
 Any file whose name starts with `_` is skipped by the `* everything` set, so
 that is also how you park a work-in-progress shader in the folder without it
-turning up in the browser (`packs/demo/shaders/_retired_matrix.frag` is one).
+turning up in the browser (`packs/hvs80-synth/shaders/_retired_matrix.frag` is one).
 
 ### How packs are found
 
@@ -131,7 +131,7 @@ bar shows:
 | if the source contains | then |
 | --- | --- |
 | `u_time` or `ftime` | the **speed** slot appears in the bar |
-| neither | the effect is *clockless*: the speed slot is hidden, and the help panel says so. Half the demo pack is clockless — `ascii`, `gameboy`, `delay`, `solarize` all sit still until the picture moves |
+| neither | the effect is *clockless*: the speed slot is hidden, and the help panel says so. Half the house pack is clockless — `ascii`, `gameboy`, `delay`, `solarize` all sit still until the picture moves |
 | `u_x3` | a **fourth** knob slot appears. Without it the effect keeps the three-param recurBOY layout and shows no dead slot |
 | `u_a0`, `u_a1` or `u_a2` | the effect is marked `♪` in the bar and the deck, meaning "moves with the sound" |
 
@@ -170,7 +170,7 @@ a few minutes. Wrap with `fract()` instead.
 The engine keeps a ring of 16 past **output** frames, about 0.8 seconds at
 the handheld's frame rate. `u_tex2` is a tap into it whose depth follows the
 first knob of the last effect in the chain (`k = 1 + x0 * 14` frames back);
-`u_tex3` is a second tap at half that depth. See `packs/demo/shaders/delay.frag`
+`u_tex3` is a second tap at half that depth. See `packs/hvs80-synth/shaders/delay.frag`
 for the plain echo and `rgbdelay.frag` for the RGB time-split:
 
 ```glsl

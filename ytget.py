@@ -2,7 +2,7 @@
 """Pull YouTube videos (single or playlist) into an HVS-80 pack.
 
 Usage:
-    .venv/bin/python ytget.py <url> [--name clipname] [--pack packs/demo]
+    .venv/bin/python ytget.py <url> [--name clipname] [--pack packs/hvs80-synth]
                               [--max-seconds 90] [--count 3] [--push]
 
 Videos are normalized to 320x240 30fps mp4 WITH audio (aac), sized for the
@@ -61,7 +61,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("url")
     ap.add_argument("--name", default=None)
-    ap.add_argument("--pack", default="packs/demo")
+    ap.add_argument("--pack", default="packs/hvs80-synth")
     ap.add_argument("--max-seconds", type=int, default=90)
     ap.add_argument("--count", type=int, default=3,
                     help="max videos to take from a playlist")

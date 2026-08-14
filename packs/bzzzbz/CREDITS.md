@@ -21,7 +21,7 @@ the top, followed by a line naming the source repo and original filename.
 | `shaders/wavepat.frag` | `src/shaders/wavepatterns.glsl` | Marcell Illyes (marcellillyes) | GPL-3.0 | [bzzzbz](https://github.com/daviderovell0/bzzzbz/blob/master/src/shaders/wavepatterns.glsl) | Structure kept exactly: two crossed carriers summed, then a `mod()`/`fract()` test lights only the pixels standing on a contour of the sum. `cos()`/`sin()` replaced by the fract/parabola stand-in and frequencies restated in cycles. Line thickness was knob `C`; it is now driven by `u_a1`/`u_a2` so the contours swell on transients, and amplitude by `u_a0`. Published colouring kept (red 1.0, green rising with height, blue 0.1). Added the `u_x2` video mix. |
 
 `shaders/_source_plasma.frag` and `shaders/_overlay.frag` are copied verbatim
-from `packs/demo/` — every pack needs its own copy to load. They are original
+from `packs/hvs80-synth/` — every pack needs its own copy to load. They are original
 to this project (GoatsAndMonkeys), not bzzzbz work.
 
 ## What was NOT ported, and why

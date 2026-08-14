@@ -1,0 +1,9 @@
+{
+  "desc": "milkdrop's warp field chewing the frame into itself",
+  "params": [
+    {"name": "zoom",  "help": "suck the frame into the middle or blow it outward — 1:1 at halfway, and the bass pumps it in"},
+    {"name": "spin",  "help": "which way the field turns and how hard — still at halfway, either direction from there"},
+    {"name": "warp",  "help": "the sine ripple bending the flow; 0 is a clean zoom, top of the knob knots it"},
+    {"name": "video", "help": "how strongly the live picture seeds the field — low leaves a ghost, high keeps it sharp"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "the frame doubled over a copy of itself, lifted and solarised",
+  "params": [
+    {"name": "size",  "help": "size of the second copy — a small inset in a streaked border up to a big magnified overlay"},
+    {"name": "flip",  "help": "which way the copy faces, in quarters: straight, mirrored, upside down, both"},
+    {"name": "blend", "help": "how much of the copy comes through — a ghost at the bottom, a hard double at the top"},
+    {"name": "lift",  "help": "dark and contrasty below halfway, brightened above it, then the highlights invert"}
+  ]
+}

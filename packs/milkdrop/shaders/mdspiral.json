@@ -1,0 +1,9 @@
+{
+  "desc": "the geiss spiral winding the picture down a tunnel",
+  "params": [
+    {"name": "twist", "help": "how much further the edge turns than the middle — flat at halfway, winds either way"},
+    {"name": "zoom",  "help": "the suck down the tunnel: inward, still at halfway, or blown out at you"},
+    {"name": "tint",  "help": "colour walking round the wheel a step every pass, one way or the other"},
+    {"name": "video", "help": "how much live picture feeds the mouth of the tunnel"}
+  ]
+}

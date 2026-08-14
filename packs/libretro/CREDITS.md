@@ -62,10 +62,10 @@ skipped on the grounds below, not on licence.)
 
 **For duplication** — the effect already exists in this project:
 
-- `misc/cmyk-halftone-dot.cg` (public domain) — duplicates `demo/halftone`.
-- `misc/color-mangler.cg` (public domain) — duplicates `demo/colorize`.
+- `misc/cmyk-halftone-dot.cg` (public domain) — duplicates `hvs80-pixel/halftone`.
+- `misc/color-mangler.cg` (public domain) — duplicates `hvs80-synth/colorize`.
 - `dithering/shaders/gendither.cg` (GPL-2.0-or-later) — duplicates
-  `demo/gameboy` and `demo/websafe_y2k`.
+  `hvs80-pixel/gameboy` and `hvs80-pixel/websafe_y2k`.
 - `motionblur/shaders/motionblur-simple.cg` (GPL-2.0-or-later) — duplicates
   `demo/feedback` and `demo/lumatrail`.
 - `misc/scanline.cg`, `misc/scanlines-sine-abs.cg` (both public domain) and

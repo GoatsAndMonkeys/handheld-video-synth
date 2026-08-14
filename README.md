@@ -290,7 +290,7 @@ per-shader provenance; ported packs also ship the upstream `LICENSE`:
 
 | pack | what | provenance |
 | --- | --- | --- |
-| `demo` | the core instrument: waaave family, scopes, meshes, automata, house effects | original + clean-room after [Andrei Jay](https://andreijaycreativecoding.com) (no licence upstream → no code copied) |
+| `hvs80-synth` | the core instrument: waaave family, scopes, meshes, automata, house effects | original + clean-room after [Andrei Jay](https://andreijaycreativecoding.com) (no licence upstream → no code copied) |
 | `recurboy` | 15 shaders, verbatim | [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection, GPL-3.0 |
 | `recur` | five 2-input mixers, ported | r_e_c_u_r, GPL-3.0 |
 | `hvs80-glitch` | signal damage: datamosh, sync corrupt, TBC stutter, circuit bending | original to this project |

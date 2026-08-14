@@ -76,7 +76,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("collection", help="folder name, e.g. lotto")
     ap.add_argument("files", nargs="+", help="source videos")
-    ap.add_argument("--pack", default="demo")
+    ap.add_argument("--pack", default="hvs80-synth")
     ap.add_argument("--seconds", type=int, default=0,
                     help="cut to this many seconds; 0 (default) keeps it whole")
     ap.add_argument("--start", type=int, default=0, help="seek before cutting")

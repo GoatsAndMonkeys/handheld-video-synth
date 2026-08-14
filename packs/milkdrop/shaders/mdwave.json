@@ -1,0 +1,9 @@
+{
+  "desc": "a scope ribbon written across the frame, trailing behind itself",
+  "params": [
+    {"name": "amp",   "help": "how far the trace throws off the centre line — a flat wire up to a full swing"},
+    {"name": "glow",  "help": "thin hot filament at the bottom, fat luminous rope at the top"},
+    {"name": "harm",  "help": "harmonics stacked on the fundamental — one lazy swing up to a busy scribble"},
+    {"name": "trail", "help": "how long the ribbon smears behind itself before it fades"}
+  ]
+}

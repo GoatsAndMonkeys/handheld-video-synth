@@ -79,7 +79,7 @@ declare and mention only what you actually read.
 |---|---|
 | `u_tex0` | source video / previous layer |
 | `u_tex1` | previous **output** frame — the feedback buffer |
-| `u_tex2`, `u_tex3` | delay-line taps into ~0.8s of past output (u_tex2 deep, u_tex3 half-depth — see `packs/demo/shaders/rgbdelay.frag`) |
+| `u_tex2`, `u_tex3` | delay-line taps into ~0.8s of past output (u_tex2 deep, u_tex3 half-depth — see `packs/hvs80-synth/shaders/rgbdelay.frag`) |
 | `u_dither` | 4×4 Bayer threshold map; sample `.r` at `floor(st * u_resolution) / 4.0` |
 | `u_atlas` | ASCII glyph strip (see `ascii.frag`) |
 | `u_x0..u_x3` | knobs, 0..1 |
@@ -128,13 +128,13 @@ Model ledgers: `packs/livecode/CREDITS.md` (mixed adapted + clean-room),
 ## Gotchas (each of these has eaten real debugging time)
 
 - A pack missing `_source_plasma.frag`/`_overlay.frag` used to fail to load
-  silently; the engine now falls back to `packs/demo`'s copies — don't ship
+  silently; the engine now falls back to `packs/hvs80-synth`'s copies — don't ship
   your own unless you want a custom look.
 - The uniform scan reads comments: writing "TODO: maybe react to u_a0" in a
   comment gives your static effect a spurious audio badge.
 - Reading state from `u_tex1` at cell centers: snap the sample to a texel
   center or bilinear filtering smears your state (see the flip-dot shader's
-  state trick in `packs/demo/shaders/flipdot.frag`).
+  state trick in `packs/hvs80-pixel/shaders/flipdot.frag`).
 - glslangValidator passing does not prove Pi behavior — mediump precision
   and undefined-out-of-range `pow`/`log` differ on device. Guard inputs
   (`pow(max(x, 0.001), e)`) and keep magnitudes small.

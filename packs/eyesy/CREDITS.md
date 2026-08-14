@@ -31,7 +31,7 @@ the incoming `u_tex0`.
 | `perspect.frag` | **S - Perspective Lines** | Owen Osborn / Critter & Guitari, Inc. | BSD-3-Clause (EYESY_OS) / BSD-2-Clause (modes repo) | [EYESY_Modes_OSv3](https://github.com/critterandguitari/EYESY_Modes_OSv3), [EYESY_OS](https://github.com/critterandguitari/EYESY_OS) | reimplementation — no code copied |
 
 `_source_plasma.frag` and `_overlay.frag` are engine-required stubs copied
-from `packs/demo/` — original to this project (GoatsAndMonkeys, GPL-3.0),
+from `packs/hvs80-synth/` — original to this project (GoatsAndMonkeys, GPL-3.0),
 nothing to do with EYESY.
 
 ## Licence compatibility

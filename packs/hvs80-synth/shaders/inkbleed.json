@@ -1,0 +1,9 @@
+{
+  "desc": "shadows wick outward as ink on wet paper",
+  "params": [
+    {"name": "bleed", "help": "how far and how fast the ink creeps each frame"},
+    {"name": "fibre", "help": "round even blooms up to ragged fingers running with the paper grain"},
+    {"name": "supply", "help": "how much ink the dark parts of the picture load onto the sheet"},
+    {"name": "ink", "help": "india black, sepia, indigo"}
+  ]
+}

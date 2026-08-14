@@ -192,7 +192,7 @@ def check_playlist(path, add, rel, pdir, others):
         name = step["shader"]
         if not os.path.exists(os.path.join(pdir, "shaders", name + ".frag")):
             # _ensure_program searches this pack first, then every pack, so a
-            # borrowed effect is legal — demo's reactive set is built that way
+            # borrowed effect is legal — the house pack's reactive set is built that way
             found = [d for d in others
                      if os.path.exists(os.path.join(d, name + ".frag"))]
             if found:
@@ -260,7 +260,7 @@ def check_pack(pdir, glslang):
     for infra in ("_source_plasma.frag", "_overlay.frag"):
         if not os.path.exists(os.path.join(pdir, "shaders", infra)):
             add("NOTE", "shaders/" + infra,
-                "absent — the engine uses the demo pack's copy")
+                "absent — the engine uses the house pack (hvs80-synth) copy")
     return out
 
 

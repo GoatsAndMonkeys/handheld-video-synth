@@ -1,0 +1,14 @@
+{
+  "name": "milkdrop",
+  "credit": "after MilkDrop — engine, not presets",
+  "steps": [
+    {"shader": "mdwarp",   "x": [0.58, 0.55, 0.35, 0.55], "speed": 0.45},
+    {"shader": "mdspiral", "x": [0.62, 0.60, 0.55, 0.45], "speed": 0.40},
+    {"shader": "mdwave",   "x": [0.55, 0.35, 0.50, 0.70], "speed": 0.55},
+    {"shader": "mdecho",   "x": [0.70, 0.30, 0.60, 0.45]},
+    {"shader": "mdwarp",   "x": [0.42, 0.70, 0.75, 0.30], "speed": 0.60},
+    {"shader": "mdwave",   "x": [0.75, 0.60, 0.85, 0.90], "speed": 0.70},
+    {"shader": "mdspiral", "x": [0.35, 0.42, 0.80, 0.25], "speed": 0.50},
+    {"shader": "mdecho",   "x": [0.40, 0.80, 0.85, 0.80]}
+  ]
+}

@@ -1176,7 +1176,7 @@ class Sources:
 
 
 def _infra_shader(pack_dir, fname):
-    """A pack's own copy of an engine-infrastructure shader, or the demo
+    """A pack's own copy of an engine-infrastructure shader, or the house
     pack's. _source_plasma and _overlay are the engine's furniture, not an
     artist's work — requiring every pack to carry copies meant a pack
     without them failed to load with no visible error, which read as a
@@ -1185,7 +1185,7 @@ def _infra_shader(pack_dir, fname):
     own = os.path.join(pack_dir, "shaders", fname)
     if os.path.exists(own):
         return own
-    return os.path.join(ROOT, "packs", "demo", "shaders", fname)
+    return os.path.join(ROOT, "packs", "hvs80-synth", "shaders", fname)
 
 
 # --------------------------------------------------------------------------
@@ -1383,6 +1383,19 @@ class Instrument:
                     pass
             self._credit_cache[key] = credit
         return self._credit_cache[key]
+
+    def _pack_fx_count(self, pack):
+        """How many effects a pack holds, cached. Underscore files are
+        engine furniture, not effects, so they do not count."""
+        if not hasattr(self, "_fxcount_cache"):
+            self._fxcount_cache = {}
+        if pack not in self._fxcount_cache:
+            import glob
+            n = len([p for p in glob.glob(os.path.join(
+                        ROOT, pack, "shaders", "*.frag"))
+                     if not os.path.basename(p).startswith("_")])
+            self._fxcount_cache[pack] = n
+        return self._fxcount_cache[pack]
 
     def list_sets(self):
         import glob
@@ -1651,9 +1664,10 @@ class Instrument:
                 active = (pack == self.pack_rel and name == self.playlist_name
                           and not self.deck)
                 credit = self._set_credit(pack, name)
-                rows.append(("set", i, "%s%s  (%s)" %
+                rows.append(("set", i, "%s%s  (%s %d)" %
                              (name, "  — " + credit if credit else "",
-                              os.path.basename(pack)), active))
+                              os.path.basename(pack),
+                              self._pack_fx_count(pack)), active))
         else:  # deck manager
             if self.menu_level == 2:      # inside one deck (menu_col = index)
                 di = self.menu_col
@@ -2605,7 +2619,7 @@ def parse_size(s):
 
 def main():
     ap = argparse.ArgumentParser(description="HVS-80 (Handheld Video Synth)")
-    ap.add_argument("--pack", default="packs/demo")
+    ap.add_argument("--pack", default="packs/hvs80-synth")
     ap.add_argument("--playlist", default="* everything")
     ap.add_argument("--rom", default=None,
                     help=".vsb ROM file: JSON {pack, playlist}")
