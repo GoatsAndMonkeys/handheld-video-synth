@@ -1175,6 +1175,19 @@ class Sources:
         return True
 
 
+def _infra_shader(pack_dir, fname):
+    """A pack's own copy of an engine-infrastructure shader, or the demo
+    pack's. _source_plasma and _overlay are the engine's furniture, not an
+    artist's work — requiring every pack to carry copies meant a pack
+    without them failed to load with no visible error, which read as a
+    menu that closes and does nothing. A pack that wants its own plasma
+    still just ships one; everyone else inherits the stock look."""
+    own = os.path.join(pack_dir, "shaders", fname)
+    if os.path.exists(own):
+        return own
+    return os.path.join(ROOT, "packs", "demo", "shaders", fname)
+
+
 # --------------------------------------------------------------------------
 # Instrument
 # --------------------------------------------------------------------------
@@ -1204,10 +1217,10 @@ class Instrument:
             if name not in self.programs:
                 self.programs[name] = Program(
                     os.path.join(self.pack_dir, "shaders", name + ".frag"))
-        self.source_prog = Program(
-            os.path.join(self.pack_dir, "shaders", "_source_plasma.frag"))
-        self.overlay_prog = Program(
-            os.path.join(self.pack_dir, "shaders", "_overlay.frag"))
+        self.source_prog = Program(_infra_shader(self.pack_dir,
+                                                 "_source_plasma.frag"))
+        self.overlay_prog = Program(_infra_shader(self.pack_dir,
+                                                  "_overlay.frag"))
 
         self.step_idx = 0
         self.param_row = 0
@@ -1400,10 +1413,10 @@ class Instrument:
                 self.programs = {}
                 self._failed_shaders = set()
                 self.meta = {}
-                self.source_prog = Program(os.path.join(
-                    self.pack_dir, "shaders", "_source_plasma.frag"))
-                self.overlay_prog = Program(os.path.join(
-                    self.pack_dir, "shaders", "_overlay.frag"))
+                self.source_prog = Program(_infra_shader(
+                    self.pack_dir, "_source_plasma.frag"))
+                self.overlay_prog = Program(_infra_shader(
+                    self.pack_dir, "_overlay.frag"))
                 # the video library is global and stays put: swapping decks
                 # must never take the playing video with it
                 self.deck_idx = 0
@@ -1411,7 +1424,11 @@ class Instrument:
             for step in self.playlist["steps"]:
                 self._ensure_program(step["shader"])
         except Exception as exc:
+            # rolling back silently read as "the menu closes and nothing
+            # happens" — a broken third-party pack must say what broke
             print("set load failed:", exc)
+            self._load_err = ("SET FAILED: %s" % exc, time.time() + 8.0)
+            self._toast_until = time.time() + 8.0
             (self.pack_rel, self.pack_dir, self.playlist,
              self.playlist_name, self.step_idx) = old
 
@@ -2259,6 +2276,9 @@ class Instrument:
         else:
             pos = "%d/%d" % (self.step_idx + 1, len(self.playlist["steps"]))
         lines.append("  %s%s" % (pos, flags))
+        err = getattr(self, "_load_err", None)
+        if err and time.time() < err[1]:
+            lines.append(("  " + err[0])[:self._patch_cols()])
 
         cap = max(2, (self.strip_h - 10) // ROW_STEP)  # scroll like the menu,
         total, top = len(lines), 0               # so a deep chain still shows

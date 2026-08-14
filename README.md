@@ -311,6 +311,10 @@ Pull videos from YouTube (playlists become collections automatically):
 
 ## Shader authoring
 
+The full pack-author contract — folder layout, every uniform, the GPU's
+limits, JSON schemas, a first-effect walkthrough and the validator — is in
+[PLUGINS.md](PLUGINS.md). The short version:
+
 GLES2 fragment shaders, no `#version`/`precision` lines (the loader prepends
 per-platform). Uniforms provided:
 
