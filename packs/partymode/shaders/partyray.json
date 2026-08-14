@@ -1,0 +1,21 @@
+{
+  "desc": "radial burst of bars, a round meter",
+  "params": [
+    {
+      "name": "rays",
+      "help": "how many bars around the circle"
+    },
+    {
+      "name": "reach",
+      "help": "how far the bars shoot from the hub"
+    },
+    {
+      "name": "spread",
+      "help": "colour step bar to bar"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the burst"
+    }
+  ]
+}

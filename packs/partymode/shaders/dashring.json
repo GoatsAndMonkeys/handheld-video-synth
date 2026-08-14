@@ -1,0 +1,21 @@
+{
+  "desc": "dashed circles chasing their tails",
+  "params": [
+    {
+      "name": "pitch",
+      "help": "spacing between rings"
+    },
+    {
+      "name": "dashes",
+      "help": "how many dashes around each ring"
+    },
+    {
+      "name": "spread",
+      "help": "colour step ring to ring"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the rings"
+    }
+  ]
+}

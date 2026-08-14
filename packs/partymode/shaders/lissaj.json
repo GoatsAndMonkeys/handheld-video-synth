@@ -1,0 +1,21 @@
+{
+  "desc": "Lissajous scope, knot rolling over itself",
+  "params": [
+    {
+      "name": "ratio",
+      "help": "the two frequencies — simple ratios knot tightly, high ones weave"
+    },
+    {
+      "name": "drift",
+      "help": "how fast the figure tumbles; low is nearly a standing shape"
+    },
+    {
+      "name": "trace",
+      "help": "beam width and phosphor glow"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the trace"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "desc": "times-table braid: chords bunching into a cardioid",
+  "params": [
+    {
+      "name": "multiplier",
+      "help": "2 draws a cardioid, 3 a nephroid; between them it comes apart"
+    },
+    {
+      "name": "chords",
+      "help": "how many strings are drawn"
+    },
+    {
+      "name": "weight",
+      "help": "line width and glow"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the strings"
+    }
+  ]
+}

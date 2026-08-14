@@ -1,0 +1,21 @@
+{
+  "desc": "morphing rose curve, petals on the bass",
+  "params": [
+    {
+      "name": "petals",
+      "help": "petal count — whole numbers close crisply, between them it spirals"
+    },
+    {
+      "name": "stroke",
+      "help": "line weight and glow"
+    },
+    {
+      "name": "drift",
+      "help": "how fast colour cycles along the radius"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the flower"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "desc": "Fay's butterfly beating its wings",
+  "params": [
+    {
+      "name": "wingspan",
+      "help": "size of the butterfly"
+    },
+    {
+      "name": "stroke",
+      "help": "line weight and glow"
+    },
+    {
+      "name": "flutter",
+      "help": "how restlessly it sways and flaps"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the wings"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "desc": "spiral arms, Fermat through Archimedean",
+  "params": [
+    {
+      "name": "tightness",
+      "help": "how closely the turns pack together"
+    },
+    {
+      "name": "type",
+      "help": "Fermat (wide out, tight in) up through even Archimedean spacing"
+    },
+    {
+      "name": "arms",
+      "help": "one spiral, or several interleaved"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the spiral"
+    }
+  ]
+}

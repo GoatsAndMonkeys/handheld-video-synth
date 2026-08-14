@@ -1,0 +1,21 @@
+{
+  "desc": "rings of dots swelling to the music",
+  "params": [
+    {
+      "name": "pitch",
+      "help": "spacing between dot rings — tight constellation to sparse orbits"
+    },
+    {
+      "name": "pulse",
+      "help": "how hard the dots swell on the beat"
+    },
+    {
+      "name": "spread",
+      "help": "colour step ring to ring — one hue up to a full rainbow"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the constellation"
+    }
+  ]
+}

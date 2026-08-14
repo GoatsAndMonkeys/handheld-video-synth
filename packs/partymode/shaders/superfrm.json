@@ -1,0 +1,21 @@
+{
+  "desc": "superformula: circle to starfish to flower",
+  "params": [
+    {
+      "name": "symmetry",
+      "help": "how many lobes — 2 is a lens, 12 a many-armed star"
+    },
+    {
+      "name": "shape",
+      "help": "roundness: bulging and soft through to tight and angular"
+    },
+    {
+      "name": "pinch",
+      "help": "how sharply the lobes narrow at their waist"
+    },
+    {
+      "name": "video",
+      "help": "video shows through behind the shape"
+    }
+  ]
+}
