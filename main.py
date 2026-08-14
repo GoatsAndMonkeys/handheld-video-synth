@@ -51,6 +51,15 @@ HEAD_ROW_PX = 18    # ~11px cell, 58 columns across the 640px surface.
 ROW_STEP = HEAD_ROW_PX + 5   # bigger type needs more than the old 15px
                              # pitch, or rows lap the ones either side
 
+# The tap hands us audio the moment it is decoded, but the matching picture
+# is still ahead of the renderer: the frame is read from its own pipe, put
+# through the chain, and only then handed to the encoder. Recorded audio
+# therefore runs ahead of recorded video by that whole path — heard as the
+# sound arriving before the picture it belongs to. Holding the audio back by
+# the same amount lines them up. Duration checks cannot see this: a constant
+# offset leaves both streams exactly as long as they were.
+AUD_DELAY_S = float(os.environ.get("HVS_AUD_DELAY", "1.0"))
+
 
 # --------------------------------------------------------------------------
 # Platforms: window/input/text live here; GL calls are shared engine code
@@ -2481,18 +2490,22 @@ class Instrument:
             now = time.time()
             self._aud_owed += (now - self._aud_t) * 44100.0  # 22050 Hz * 2 B
             self._aud_t = now
+            # The queue carries a deliberate reserve: AUD_DELAY_S of audio is
+            # always held back so what we emit is the sound of the picture
+            # the renderer is showing now, not the sound of the frame still
+            # in the pipe. Above that reserve the queue must stay SHALLOW —
+            # emission is pinned to realtime, so surplus backlog is a
+            # standing delay that never drains (one take came out seconds
+            # behind after a few clip switches, each stacking its pre-roll
+            # burst and the old clip's never-played tail into the queue).
+            hold = int(AUD_DELAY_S * 44100.0) & ~1
             if self.radio.tap:
                 self._aud_buf += self.radio.tap
-                # The queue must stay SHALLOW. Emission is pinned to
-                # realtime, so any backlog is a standing delay that never
-                # drains — one take came out seconds behind after a few
-                # clip switches, each stacking its pre-roll burst and the
-                # old clip's never-played tail into the queue. Dropping
-                # the oldest surplus keeps sync error bounded at ~0.3s
-                # (about the sound path's own latency) instead of growing.
-                del self._aud_buf[:-13230]         # cap: 0.3s
+                # reserve + 0.3s of burst headroom; oldest surplus dropped
+                del self._aud_buf[:-(hold + 13230)]
             n = int(min(self._aud_owed, 88200.0)) & ~1   # catch-up <= 2s/tick
-            take = min(n, len(self._aud_buf))
+            # never drain into the reserve: that is the delay
+            take = min(n, max(0, len(self._aud_buf) - hold))
             if take:
                 self.streamer.push_audio(bytes(self._aud_buf[:take]))
                 del self._aud_buf[:take]
