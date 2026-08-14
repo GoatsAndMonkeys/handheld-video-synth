@@ -9,4 +9,9 @@ cd /home/pi/handheld-video-synth
 LOG=/home/pi/videosynth.log
 [ -f "$LOG" ] && [ "$(stat -c%s "$LOG")" -gt 2000000 ] && mv -f "$LOG" "$LOG.1"
 echo "=== launch $(date +%H:%M:%S) rom=$1" >> "$LOG"
+# the web console is a cart too: {"mode": "web"} instead of a pack. Its
+# output goes to the screen, not the log — the URL is the whole point of it
+if grep -q '"mode"[[:space:]]*:[[:space:]]*"web"' "$1" 2>/dev/null; then
+    exec python3 -u webui.py 2>&1 | tee -a "$LOG"
+fi
 exec python3 -u main.py --rom "$1" >> "$LOG" 2>&1
