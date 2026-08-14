@@ -51,14 +51,38 @@ HEAD_ROW_PX = 18    # ~11px cell, 58 columns across the 640px surface.
 ROW_STEP = HEAD_ROW_PX + 5   # bigger type needs more than the old 15px
                              # pitch, or rows lap the ones either side
 
-# The tap hands us audio the moment it is decoded, but the matching picture
-# is still ahead of the renderer: the frame is read from its own pipe, put
-# through the chain, and only then handed to the encoder. Recorded audio
-# therefore runs ahead of recorded video by that whole path — heard as the
-# sound arriving before the picture it belongs to. Holding the audio back by
-# the same amount lines them up. Duration checks cannot see this: a constant
-# offset leaves both streams exactly as long as they were.
-AUD_DELAY_S = float(os.environ.get("HVS_AUD_DELAY", "1.0"))
+# Recorded audio runs AHEAD of recorded video, and the amount is not a
+# guess — it is the sound card's own buffer. The clip's audio process feeds
+# two outputs at once: the tap we record from, and ALSA. ALSA back-pressures
+# the decoder, so decoding runs exactly as far ahead of real time as that
+# buffer is deep, and the tap therefore carries sound that will not be heard
+# for another buffer's worth. The video decoder has no such buffer: -re
+# paces it to the wall clock and the reader always takes the newest frame.
+# So the picture is current while the audio is early, by buffer_size / rate.
+# Measured on the deck: 32768 frames at 44100 Hz = 0.743 s.
+#
+# Read it at record time rather than hardcoding, so a different card, period
+# size or resample rate corrects itself. HVS_AUD_DELAY overrides for testing.
+def alsa_delay_s():
+    env = os.environ.get("HVS_AUD_DELAY")
+    if env:
+        return float(env)
+    best = 0.0
+    try:
+        import glob as _g
+        for hw in _g.glob("/proc/asound/card*/pcm*p/sub*/hw_params"):
+            size = rate = 0.0
+            with open(hw) as f:
+                for line in f:
+                    if line.startswith("buffer_size:"):
+                        size = float(line.split(":")[1])
+                    elif line.startswith("rate:"):
+                        rate = float(line.split(":")[1].split()[0])
+            if size and rate:
+                best = max(best, size / rate)
+    except Exception:
+        pass          # not playing, or no ALSA: nothing to line up against
+    return best
 
 
 # --------------------------------------------------------------------------
@@ -1267,6 +1291,8 @@ class Instrument:
         self._aud_t = time.time()
         self._aud_owed = 0.0
         self._aud_buf = bytearray()
+        self._aud_hold = 0         # samples held back; measured live below
+        self._aud_probe = 0.0      # last ALSA buffer probe (see alsa_delay_s)
         self._frame_no = 0
         self.menu_open = False
         self._del_arm = None    # pending delete awaiting Y confirm
@@ -2092,6 +2118,8 @@ class Instrument:
         self._aud_t = time.time()
         self._aud_owed = 0.0
         self._aud_buf = bytearray()
+        self._aud_hold = 0         # samples held back; measured live below
+        self._aud_probe = 0.0      # last ALSA buffer probe (see alsa_delay_s)
         print("streaming to", dest.split("/")[2] if "://" in dest else dest)
 
     def draw_fullscreen(self):
@@ -2498,7 +2526,17 @@ class Instrument:
             # standing delay that never drains (one take came out seconds
             # behind after a few clip switches, each stacking its pre-roll
             # burst and the old clip's never-played tail into the queue).
-            hold = int(AUD_DELAY_S * 44100.0) & ~1
+            # The card reports its buffer only while it is open, so a single
+            # read can land in a silent gap and measure nothing. Retry at
+            # 1 Hz until playback answers — while it stays shut there is no
+            # sound to line up, so a zero hold is the right answer anyway.
+            if not self._aud_hold and now - self._aud_probe > 1.0:
+                self._aud_probe = now
+                self._aud_hold = int(alsa_delay_s() * 44100.0) & ~1
+                if self._aud_hold:
+                    print("recorder: holding audio %.3fs to match the picture"
+                          % (self._aud_hold / 44100.0))
+            hold = self._aud_hold or 0
             if self.radio.tap:
                 self._aud_buf += self.radio.tap
                 # reserve + 0.3s of burst headroom; oldest surplus dropped
