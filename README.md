@@ -296,6 +296,11 @@ per-shader provenance; ported packs also ship the upstream `LICENSE`:
 | `hydra` | six Hydra generators/warps, reimplemented | after [Olivia Jack](https://github.com/hydra-synth/hydra)'s vocabulary, AGPL upstream, no code copied |
 | `livecode` | six pieces after the [livecode.nyc](https://livecode.nyc/tools) scene | 3 adapted from [The Force](https://github.com/shawnlawson/The_Force) (MIT, Shawn Lawson), 3 clean-room after la habra & bl4st |
 
+Third-party packs install with `python3 tools/packget.py <zip|url|folder>` —
+validated first, then synced to the deck. Your own original packs are yours
+to share or **sell** (itch.io with 0% revenue share, or a tip link in
+`pack.json`) — see [PLUGINS.md](PLUGINS.md) §8.
+
 Pull videos from YouTube (playlists become collections automatically):
 
 ```sh

@@ -545,3 +545,54 @@ why, you did not rewrite it.
 
 Write the `CREDITS.md` while you build the pack, not afterwards. It is much
 easier to say where a shader came from on the day you wrote it.
+
+## 8. Sharing and selling your pack
+
+A pack you wrote yourself is **yours**. Packs are content loaded through the
+documented interface above — like game data on a GPL game engine — so your
+original pack can carry any licence you choose, including a commercial one.
+Two rules survive from §7 no matter what: anything you ported from GPL code
+stays GPL (you may charge for it, but buyers keep the right to share it),
+and CC BY-NC material cannot be sold at all.
+
+**Selling: use [itch.io](https://itch.io).** Set your project's revenue
+share to 0% and you keep everything except card-processing fees; itch
+handles payment, delivery, VAT and refunds, and its audience already buys
+VJ loops and EYESY modes. Upload a zip of your pack folder — the same
+folder that passes `checkpack.py`:
+
+```
+mypack.zip
+  pack.json
+  shaders/*.frag + *.json
+  playlists/mypack.json
+  CREDITS.md          (and LICENSE, if you ported code)
+```
+
+Record preview clips with the deck itself (**record to SD**, then pull the
+mp4) — nobody buys a shader pack from a text description.
+
+Optional `pack.json` fields for distribution — the installer prints them
+after a successful install, and a free pack with a tip link is a fine model
+too:
+
+```json
+{
+  "name": "mypack",
+  "artist": "you",
+  "itch": "https://you.itch.io/mypack",
+  "pay":  "https://paypal.me/you/5"
+}
+```
+
+**Installing someone else's pack:**
+
+```sh
+python3 tools/packget.py mypack.zip            # or a URL, or an unzipped folder
+```
+
+validates the pack (structure, schemas, shader lint — install is refused on
+errors), copies it into `packs/`, warns about shader-name collisions with
+installed packs, syncs it to the deck if one is reachable, and prints the
+author's pay link. Packs are text you run on your own hardware — read
+`checkpack`'s findings before trusting a download, same as any code.
