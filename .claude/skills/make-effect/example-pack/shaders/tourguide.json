@@ -1,0 +1,9 @@
+{
+  "desc": "teaching effect: warped noise flats, trails, dither, video glow",
+  "params": [
+    {"name": "scale", "help": "size of the noise field — broad pools to a busy simmer"},
+    {"name": "trail", "help": "feedback smear; motion drags ghosts, always decays"},
+    {"name": "palette", "help": "rotates the four flats through the field"},
+    {"name": "video", "help": "the source glows through — 0 pure generator, up to full blend"}
+  ]
+}
