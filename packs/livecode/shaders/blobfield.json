@@ -1,0 +1,9 @@
+{
+  "desc": "hard candy blobs cut from waves of pure colour",
+  "params": [
+    {"name": "scale",  "help": "size of the wave lobes — big lava lamp shapes to a busy froth"},
+    {"name": "harden", "help": "smooth psychedelic wash at 0, razor-cut poster blobs at full"},
+    {"name": "flavor", "help": "colour pairing — deep blue against red across to yellow against orange"},
+    {"name": "video",  "help": "the picture steers the fields so blobs gather on bright shapes"}
+  ]
+}

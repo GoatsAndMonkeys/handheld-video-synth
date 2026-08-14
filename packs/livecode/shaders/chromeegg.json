@@ -1,0 +1,9 @@
+{
+  "desc": "liquid chrome rings boiling out of a log-polar well",
+  "params": [
+    {"name": "warp",  "help": "size of the cells bending the rings — big slow bulges to a tight boil"},
+    {"name": "rings", "help": "ring density — a few fat chrome bands up to fine grain"},
+    {"name": "trail", "help": "feedback smear; the rings drag ghosts of themselves as they roll"},
+    {"name": "video", "help": "the picture embosses into the chrome and glows through the dark gaps"}
+  ]
+}

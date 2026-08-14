@@ -280,6 +280,22 @@ packs/<name>/
   playlists/*.json   effect setlists; decks.json = the user's named decks
 ```
 
+Ten packs ship with the instrument. Per-pack `CREDITS.md` files carry the
+per-shader provenance; ported packs also ship the upstream `LICENSE`:
+
+| pack | what | provenance |
+| --- | --- | --- |
+| `demo` | the core instrument: waaave family, scopes, meshes, automata, house effects | original + clean-room after [Andrei Jay](https://andreijaycreativecoding.com) (no licence upstream → no code copied) |
+| `recurboy` | 15 shaders, verbatim | [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection, GPL-3.0 |
+| `recur` | five 2-input mixers, ported | r_e_c_u_r, GPL-3.0 |
+| `glitch` | tape/broadcast damage: datamosh, sync corrupt, TBC stutter | original to this project |
+| `libretro` | 19 CRT/LCD/retro ports | [common-shaders](https://github.com/libretro/common-shaders), per-file licences (PD/MIT/GPL) |
+| `bzzzbz` | four analog-style generators, ported | [bzzzbz](https://github.com/daviderovell0/bzzzbz), GPL-3.0 |
+| `eyesy` | six EYESY modes, reimplemented from Python | [Critter & Guitari](https://github.com/critterandguitari/EYESY_OS), BSD |
+| `partymode` | 9 geometric party pieces, clean-room | after [Mathew Preziotte](https://github.com/preziotte) (no licence upstream → no code copied) |
+| `hydra` | six Hydra generators/warps, reimplemented | after [Olivia Jack](https://github.com/hydra-synth/hydra)'s vocabulary, AGPL upstream, no code copied |
+| `livecode` | six pieces after the [livecode.nyc](https://livecode.nyc/tools) scene | 3 adapted from [The Force](https://github.com/shawnlawson/The_Force) (MIT, Shawn Lawson), 3 clean-room after la habra & bl4st |
+
 Pull videos from YouTube (playlists become collections automatically):
 
 ```sh
@@ -359,7 +375,7 @@ glshim.py            GL import switch (PyOpenGL vs pi_backend)
 pi_backend.py        dispmanx EGL + GLES2 via ctypes, evdev input, PIL text
 ytget.py             YouTube → 320x240 clips (+audio), playlist collections
 launch.sh, pi/       RetroPie launcher, installer, starter carts (.vsb)
-packs/demo/          starter effects + your clips     packs/recurboy/  GPL shaders
+packs/               ten effect packs (see Content packs) + your clips
 docs/SD_CARD_GUIDE.md   pressing a full SD card image
 ```
 

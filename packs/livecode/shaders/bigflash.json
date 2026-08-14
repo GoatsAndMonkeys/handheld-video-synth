@@ -1,0 +1,9 @@
+{
+  "desc": "poster shapes and a flashing field, hard cuts on a clock",
+  "params": [
+    {"name": "size",    "help": "how big the poster shapes swell — modest to edge-to-edge"},
+    {"name": "snap",    "help": "clock for the jump cuts; bass shoves the next one in early"},
+    {"name": "palette", "help": "rotates the six flats through field, shapes and dots"},
+    {"name": "video",   "help": "shapes open as video windows — circle first, then triangle, then dome"}
+  ]
+}

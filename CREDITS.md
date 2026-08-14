@@ -13,6 +13,7 @@ work the project uses, how it is used, and why the licensing is compatible.
 | bzzzbz shaders (`packs/bzzzbz/shaders/*.frag`) | Davide Rovelli, Peter Nagy, Illyes ([bzzzbz](https://github.com/daviderovell0/bzzzbz)) | **GPL-3.0** ([`packs/bzzzbz/LICENSE`](packs/bzzzbz/LICENSE)) | four generators ported to our uniform convention and cut to fit the Pi's GPU; per-file authorship and per-shader changes recorded in [`packs/bzzzbz/CREDITS.md`](packs/bzzzbz/CREDITS.md) | GPL-3 in a GPL-3 project ✔ |
 | libretro shader ports (`packs/libretro/shaders/*.frag`) | many (per-file authors preserved: Lottes, Themaister, hunterk, Hyllian, gizmo98, leilei, guest(r), haasn, Greg Hogan, aliaspider, Gigaherz, cgwg, DesLauriers) | mixed **per file** — public domain / MIT / GPL-2.0-or-later / GPL-3.0; every one read from its own header, since [common-shaders](https://github.com/libretro/common-shaders) has **no repo-wide LICENSE** ([`packs/libretro/CREDITS.md`](packs/libretro/CREDITS.md)) | 19 effects ported to our uniform convention and cut to fit the Pi's GPU; files with an unversioned "GPL", a non-commercial clause, or no licence header were **skipped** — those are listed too | each is individually GPL-3-compatible ✔ |
 | EYESY modes (`packs/eyesy/shaders/*.frag`) | Owen Osborn / Critter & Guitari, Inc. ([EYESY_OS](https://github.com/critterandguitari/EYESY_OS), [modes](https://github.com/critterandguitari/EYESY_Modes_OSv3)) | **BSD-3-Clause** (OS) / BSD-2-Clause (modes) ([`packs/eyesy/LICENSE`](packs/eyesy/LICENSE)) | six modes **reimplemented** as fragment shaders — the originals are Python/pygame primitive drawing, so no code could be copied; notice, conditions and disclaimer carried in every file header | BSD is permissive and GPL-3-compatible ✔ |
+| The Force shader experiments (`packs/livecode/shaders/{chromeegg,blobfield,darksky}.frag`) | [Shawn Lawson](https://github.com/shawnlawson/The_Force) | **MIT** (Copyright (c) 2015 Shawn Lawson; text in [`packs/livecode/LICENSE`](packs/livecode/LICENSE)) | three `shaderExperiments/` pieces **adapted** to the house trigless/mediump idiom — constructions kept, math rebuilt; per-file adapted-vs-original statements in headers, details in [`packs/livecode/CREDITS.md`](packs/livecode/CREDITS.md) | MIT is GPL-3-compatible ✔ |
 
 **Deliberately not used:** `creation.glsl` from that same repository is
 [Silexars' "Creation"](https://www.shadertoy.com/view/XsXXDn) by Danilo
@@ -56,6 +57,27 @@ code read while writing them.
 
 If any of this ever ships commercially, reach out to Andrei first as a
 courtesy — this scene runs on goodwill.
+
+The same clean-room rule produced three more packs:
+
+- **`packs/partymode/`** — nine shaders after
+  [Mathew Preziotte](https://github.com/preziotte)'s generative party
+  visuals. His repositories carry no licence; his originals compose SVG in
+  JavaScript, these are per-pixel GLSL. Per-shader map in
+  [`packs/partymode/CREDITS.md`](packs/partymode/CREDITS.md).
+- **`packs/hydra/`** — six shaders after the core vocabulary of
+  [Hydra](https://github.com/hydra-synth/hydra) by
+  [Olivia Jack](https://ojack.xyz) (AGPL-3.0 — compatible in this direction,
+  but nothing derives from its source anyway: Hydra composes GLSL from
+  JavaScript chains at runtime, these are hand-written shaders after six
+  generators' visual ideas). [`packs/hydra/CREDITS.md`](packs/hydra/CREDITS.md).
+- **`packs/livecode/`** — besides the three MIT adaptations above, three
+  clean-room pieces after the [livecode.nyc](https://livecode.nyc/tools)
+  scene: `flatland` and `bigflash` after
+  [la habra](https://github.com/sarahghp/la-habra) by Sarah Groff
+  Hennigh-Palermo (MIT ClojureScript composing SVG — nothing portable), and
+  `flamewisp` after bl4st by Dan Gorelick & Tyler Peterson (unlicensed —
+  source never read). [`packs/livecode/CREDITS.md`](packs/livecode/CREDITS.md).
 
 `ascii`, `gameboy`, `colorize`, `feedback`, `websafe_y2k`, `rgbdelay`, `vhs`,
 `solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`, `nightvis`,

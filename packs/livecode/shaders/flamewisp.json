@@ -1,0 +1,9 @@
+{
+  "desc": "wisps of luminous smoke folded out of a flame map",
+  "params": [
+    {"name": "fold",   "help": "which map the wisps fall out of — swings the fold axes and twist, every position a different attractor"},
+    {"name": "detail", "help": "broad smoke sheets at 0, dense fine filaments up high"},
+    {"name": "hue",    "help": "sweeps the flame palette — ember reds through gas-jet blues"},
+    {"name": "video",  "help": "video glows through the dark ground behind the wisps"}
+  ]
+}

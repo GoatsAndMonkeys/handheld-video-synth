@@ -1,0 +1,9 @@
+{
+  "desc": "analog aurora — rare bright streaks across a dark sky",
+  "params": [
+    {"name": "spikes",  "help": "how rare and sharp the streaks are — soft glow bands to lightning-thin"},
+    {"name": "drift",   "help": "how fast the sky churns and the streaks wander"},
+    {"name": "shimmer", "help": "ragged noise eating holes in the streaks; 0 leaves clean bands"},
+    {"name": "video",   "help": "video shows through behind the sky"}
+  ]
+}

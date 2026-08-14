@@ -1,0 +1,9 @@
+{
+  "desc": "rows of flat shapes jump-cutting between states",
+  "params": [
+    {"name": "grid",    "help": "shapes per row — two giants up to a dense lattice"},
+    {"name": "snap",    "help": "how often the layout cuts to its next state; bass kicks it in early"},
+    {"name": "palette", "help": "rotates six flat colours through backgrounds and shapes"},
+    {"name": "video",   "help": "more shapes become windows straight into the video"}
+  ]
+}
