@@ -1,0 +1,9 @@
+{
+  "desc": "turing chemistry growing out of the picture",
+  "params": [
+    {"name": "pattern", "help": "walks the feed/kill line: fingerprint worms, then coral, then leopard spots"},
+    {"name": "scale", "help": "how far the chemicals reach each step — fine grain up to fat blobs"},
+    {"name": "seed", "help": "how hard the bright parts of the picture feed the reaction"},
+    {"name": "palette", "help": "four inks: reef, leopard, indigo on bone, acid"}
+  ]
+}

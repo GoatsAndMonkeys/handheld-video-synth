@@ -293,7 +293,8 @@ per-shader provenance; ported packs also ship the upstream `LICENSE`:
 | `demo` | the core instrument: waaave family, scopes, meshes, automata, house effects | original + clean-room after [Andrei Jay](https://andreijaycreativecoding.com) (no licence upstream → no code copied) |
 | `recurboy` | 15 shaders, verbatim | [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection, GPL-3.0 |
 | `recur` | five 2-input mixers, ported | r_e_c_u_r, GPL-3.0 |
-| `glitch` | tape/broadcast damage: datamosh, sync corrupt, TBC stutter | original to this project |
+| `hvs80-glitch` | signal damage: datamosh, sync corrupt, TBC stutter, circuit bending | original to this project |
+| `hvs80-pixel` | reproduction processes: dither, palette crush (Game Boy, C64, CGA, Spectrum, PICO-8, Virtual Boy), print inks, glyph art, flip-dot and e-ink displays | original to this project |
 | `libretro` | 19 CRT/LCD/retro ports | [common-shaders](https://github.com/libretro/common-shaders), per-file licences (PD/MIT/GPL) |
 | `bzzzbz` | four analog-style generators, ported | [bzzzbz](https://github.com/daviderovell0/bzzzbz), GPL-3.0 |
 | `eyesy` | six EYESY modes, reimplemented from Python | [Critter & Guitari](https://github.com/critterandguitari/EYESY_OS), BSD |
