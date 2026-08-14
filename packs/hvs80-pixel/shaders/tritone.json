@@ -1,0 +1,9 @@
+{
+  "desc": "three flat tones: black, a colour you pick, and white",
+  "params": [
+    {"name": "colour", "help": "the middle tone around the wheel — 0.14 is screenprint yellow, 0.0 red, 0.35 green, 0.6 blue"},
+    {"name": "pixel", "help": "chunk size — near-full resolution down to fat blocks"},
+    {"name": "dither", "help": "stipple along the tone boundaries; 0 is hard-edged poster art"},
+    {"name": "balance", "help": "slides both cuts — low floods the frame white, high sinks it into black"}
+  ]
+}
