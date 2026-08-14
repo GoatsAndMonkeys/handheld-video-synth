@@ -336,6 +336,32 @@ Pull videos from YouTube (playlists become collections automatically):
   in `stream.json` (gitignored): `{"url": "rtmp://a.rtmp.youtube.com/live2",
   "key": "...", "mixer": "udp://your-laptop.local:5001?pkt_size=1316"}`
 
+## Web console
+
+A third cart, ***Web Server***, turns the handheld into a small web server
+on your WiFi instead of an instrument. Launch it and the screen prints the
+URL; open that on a phone or laptop on the same network to:
+
+- **watch and download recordings** — every `rec_*.mp4` from every pack,
+  playable in the browser (byte ranges are served, so scrubbing works on
+  iOS), and deletable when the card fills up
+- **upload videos** straight into a pack's clip collection, so a clip you
+  found on your phone is a source on the handheld without a laptop
+- **install packs** — upload a `.zip`; it is validated with
+  `tools/checkpack.py` and refused outright if it has errors
+- **export a pack** as a zip (shaders, playlists, credits — never your
+  clips): the same bundle another HVS-80 installs, or that you upload to
+  itch.io
+- **import and export decks** — pull `decks.json` off the device to back up
+  or share a set, push one back to load it. The previous file is always kept
+  as `decks.bak.json`
+
+It is stdlib-only Python, so nothing is installed on the Pi, and there is
+**no password**: anyone who can reach the port can write files into
+`packs/`. It is a home-LAN tool — don't run it on café WiFi. Port defaults
+to 8080 (`HVS_WEB_PORT` overrides). `python3 tools/webui_smoke.py` runs 26
+checks against a throwaway copy of the tree.
+
 ## Shader authoring
 
 The full pack-author contract — folder layout, every uniform, the GPU's

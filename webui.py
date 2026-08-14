@@ -76,6 +76,37 @@ def collections(pack):
                   if os.path.isdir(os.path.join(cdir, d)))
 
 
+def fx_count(pack):
+    sdir = os.path.join(PACKS, pack, "shaders")
+    if not os.path.isdir(sdir):
+        return 0
+    return len([f for f in os.listdir(sdir)
+                if f.endswith(".frag") and not f.startswith("_")])
+
+
+def free_space():
+    """Recording onto a full card fails in the least helpful way possible —
+    mid-take — so the number belongs on the page, not in a log."""
+    try:
+        du = shutil.disk_usage(ROOT)
+        return "%.1f GB free of %.1f GB" % (du.free / 1e9, du.total / 1e9)
+    except Exception:
+        return ""
+
+
+def zip_pack(pack, dest):
+    """A pack as a shareable .zip: everything but clips, which are the
+    user's own video and nobody else's business."""
+    base = os.path.join(PACKS, pack)
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
+        for root, dirs, names in os.walk(base):
+            dirs[:] = [d for d in dirs if d != "clips"]
+            for n in names:
+                full = os.path.join(root, n)
+                z.write(full, os.path.join(
+                    pack, os.path.relpath(full, base)))
+
+
 # ---------------------------------------------------------------- multipart
 
 def parse_multipart(rfile, length, boundary, workdir):
@@ -168,6 +199,8 @@ a{color:var(--hot)}
 input,select,button{font:inherit;background:#17171d;color:var(--fg);
  border:1px solid var(--line);border-radius:7px;padding:8px 10px}
 button{background:var(--hot);color:#111;border:0;font-weight:600;cursor:pointer}
+button.danger{background:none;color:#ff6b6b;border:1px solid var(--line);
+ padding:4px 9px;font-weight:400;margin-left:10px}
 label{display:block;margin:10px 0 4px;color:var(--dim);font-size:13px}
 .note{color:var(--dim);font-size:13px}
 .ok{color:#7ee081}.bad{color:#ff6b6b}
@@ -186,9 +219,15 @@ def page(msg=""):
         cards = "".join(
             '<div class="card"><video controls preload="metadata" src="%s">'
             '</video><div class="meta">%s &middot; %s &middot; %.1f MB</div>'
-            '<a href="%s" download>download</a></div>'
+            '<a href="%s" download>download</a>'
+            '<form method=post action="/delete" style="display:inline">'
+            '<input type=hidden name=pack value="%s">'
+            '<input type=hidden name=file value="%s">'
+            '<button class=danger onclick="return confirm(\'Delete %s?\')">'
+            'delete</button></form></div>'
             % ("/media/%s/clips/%s" % (p, f), html.escape(f), html.escape(p),
-               n / 1e6, "/media/%s/clips/%s" % (p, f))
+               n / 1e6, "/media/%s/clips/%s" % (p, f),
+               html.escape(p), html.escape(f), html.escape(f))
             for p, f, n in recs)
     else:
         cards = ('<p class="note">No recordings yet. Hit record on the '
@@ -197,11 +236,20 @@ def page(msg=""):
         '<li><a href="/decks/%s">%s</a></li>' % (html.escape(p), html.escape(p))
         for p in packlist
         if os.path.exists(os.path.join(PACKS, p, "playlists", "decks.json")))
+    packrows = "".join(
+        '<li>%s <span class=note>&mdash; %d effects</span> '
+        '<a href="/export/%s">export .zip</a></li>'
+        % (html.escape(p), fx_count(p), html.escape(p))
+        for p in packlist if fx_count(p))
     return """<!doctype html><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>HVS-80</title><style>%s</style>
-<header><h1>HVS-80</h1></header><main>%s
+<header><h1>HVS-80</h1><div class=note>%s</div></header><main>%s
 <section><h2>Recordings</h2><div class="row">%s</div></section>
+<section><h2>Packs</h2><ul>%s</ul>
+<p class="note">Export bundles the shaders, playlists and credits — never
+your clips. That zip is exactly what installs on another HVS-80, or what
+you upload to itch.io.</p></section>
 <section><h2>Upload a video</h2>
 <form method=post action="/upload/video" enctype="multipart/form-data">
 <label>pack</label><select name=pack>%s</select>
@@ -225,8 +273,9 @@ current file is backed up as decks.bak.json before anything is replaced.</p>
 <label>pack</label><select name=pack>%s</select>
 <label>decks.json</label><input type=file name=file accept=".json" required>
 <p><button>Import decks</button></p></form></section>
-</main>""" % (CSS, msg, cards, opts, decks or
-              "<li class=note>No saved decks yet.</li>", opts)
+</main>""" % (CSS, free_space(), msg, cards,
+              packrows or "<li class=note>No packs installed.</li>",
+              opts, decks or "<li class=note>No saved decks yet.</li>", opts)
 
 
 def banner(msg, good=True):
@@ -263,7 +312,27 @@ class Handler(BaseHTTPRequestHandler):
             return self._file(os.path.join(PACKS, pack, "playlists",
                                            "decks.json"),
                               download="%s-decks.json" % pack)
+        if path.startswith("/export/"):
+            return self._export(safe_name(path[len("/export/"):]))
         self._send("not found", 404, "text/plain")
+
+    def _export(self, pack):
+        if pack not in packs():
+            return self._send("not found", 404, "text/plain")
+        tmp = tempfile.mkdtemp(prefix="hvszip_")
+        try:
+            path = os.path.join(tmp, pack + ".zip")
+            zip_pack(pack, path)
+            body = open(path, "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Disposition",
+                             'attachment; filename="%s.zip"' % pack)
+            self.end_headers()
+            self.wfile.write(body)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def _file(self, path, download=None):
         real = os.path.realpath(path)
@@ -327,6 +396,8 @@ class Handler(BaseHTTPRequestHandler):
                 msg, ok = self._take_pack(files)
             elif route == "/upload/decks":
                 msg, ok = self._take_decks(fields, files)
+            elif route == "/delete":
+                msg, ok = self._delete(fields)
             else:
                 msg, ok = "Unknown upload.", False
             self._send(page(banner(msg, ok)))
@@ -352,6 +423,21 @@ class Handler(BaseHTTPRequestHandler):
         return "Added %s to %s/%s (%.1f MB)." % (
             os.path.basename(dest), pack, coll,
             os.path.getsize(dest) / 1e6), True
+
+    def _delete(self, fields):
+        """Recordings only. A web page on an open LAN must not be able to
+        reach a shader, a playlist, or somebody's clip library."""
+        pack = safe_name(fields.get("pack", ""))
+        name = safe_name(fields.get("file", ""))
+        if pack not in packs() or not name.startswith("rec_") \
+                or not name.lower().endswith(".mp4"):
+            return "Only recordings can be deleted here.", False
+        path = os.path.join(PACKS, pack, "clips", name)
+        if not inside(path, os.path.realpath(PACKS)) or not os.path.isfile(path):
+            return "No such recording.", False
+        mb = os.path.getsize(path) / 1e6
+        os.remove(path)
+        return "Deleted %s from %s (%.1f MB freed)." % (name, pack, mb), True
 
     def _take_pack(self, files):
         if "file" not in files:
