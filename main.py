@@ -1400,7 +1400,13 @@ class Instrument:
     def list_sets(self):
         import glob
         out = []
-        for pdir in sorted(glob.glob(os.path.join(ROOT, "packs", "*"))):
+        # the instrument's own packs head the menu; guests follow, A-Z
+        def order(p):
+            b = os.path.basename(p)
+            house = ("hvs80-synth", "hvs80-pixel", "hvs80-glitch")
+            return (house.index(b), "") if b in house else (len(house), b)
+        for pdir in sorted(glob.glob(os.path.join(ROOT, "packs", "*")),
+                           key=order):
             rel = os.path.relpath(pdir, ROOT)
             names = [os.path.splitext(os.path.basename(pj))[0]
                      for pj in sorted(glob.glob(os.path.join(
