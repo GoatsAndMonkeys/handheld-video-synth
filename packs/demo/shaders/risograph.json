@@ -1,0 +1,9 @@
+{
+  "desc": "two-ink riso print, plates out of register",
+  "params": [
+    {"name": "inks", "help": "steps the drum pair: pink/blue, orange/teal, pink/green, yellow/purple"},
+    {"name": "regist", "help": "how far the two plates miss each other — bass shoves the sheet further"},
+    {"name": "grain", "help": "tight riso stipple <-> chunky grain"},
+    {"name": "flood", "help": "ghost print <-> flooded drums"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "four reds on black, mirror-scanned",
+  "params": [
+    {"name": "pixel", "help": "chunky <-> fine pixels"},
+    {"name": "scan", "help": "dark seams between the scanned rows"},
+    {"name": "ghost", "help": "the stereo double image your other eye never fused"},
+    {"name": "heat", "help": "embers at 0, LEDs flat out at 10; bass flares the top shade"}
+  ]
+}

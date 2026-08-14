@@ -1,0 +1,9 @@
+{
+  "desc": "two rulings beat against each other; the fringes draw the picture",
+  "params": [
+    {"name": "lines",  "help": "ruling pitch — coarse bars up to a fine mesh"},
+    {"name": "detune", "help": "frequency gap between the rulings — sets the beat size"},
+    {"name": "spread", "help": "angle between the rulings — parallel to crossed"},
+    {"name": "ink",    "help": "black-and-white interference through to video-tinted fringes"}
+  ]
+}

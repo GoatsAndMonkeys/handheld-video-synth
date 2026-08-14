@@ -1,0 +1,9 @@
+{
+  "desc": "four colours off a 1981 ibm card",
+  "params": [
+    {"name": "pal", "help": "green/red/brown through cyan/magenta into the bright tweak set"},
+    {"name": "pixel", "help": "chunk size — the card's 320 columns down to fat blocks"},
+    {"name": "ntsc", "help": "composite artefact fringing — edges bleed orange and blue by column"},
+    {"name": "dither", "help": "ordered dither across the four colours"}
+  ]
+}

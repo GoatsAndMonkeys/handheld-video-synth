@@ -1,0 +1,9 @@
+{
+  "desc": "time posterized — the frame refreshes in slow swept ticks",
+  "params": [
+    {"name": "rate", "help": "how often the sweep comes round — bass shoves it forward for an early tick"},
+    {"name": "shape", "help": "wipe down, wipe across, or blocks dealt in bayer order"},
+    {"name": "hold", "help": "0 lets live video ghost through everywhere; 1 freezes each cell solid until its tick"},
+    {"name": "cells", "help": "how many stripes or blocks the screen is dealt into"}
+  ]
+}

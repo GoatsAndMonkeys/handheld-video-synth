@@ -1,0 +1,9 @@
+{
+  "desc": "sixteen pepto colours, dithered and cell-bound",
+  "params": [
+    {"name": "chunk", "help": "pixel size — 160 across at rest, the multicolour width"},
+    {"name": "dither", "help": "ordered dither hatching between the sixteen colours"},
+    {"name": "cells", "help": "vic-ii limit: free per pixel at 0, flat 8x8 cells with black ink detail at full"},
+    {"name": "scan", "help": "family-tv scanlines, 200 rows"}
+  ]
+}

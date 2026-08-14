@@ -1,0 +1,9 @@
+{
+  "desc": "rhythmic echoes — three tinted strobes of the past",
+  "params": [
+    {"name": "depth", "help": "how far back the farthest echo reaches (~1s max)"},
+    {"name": "pulse", "help": "the clock the echo weights throb around"},
+    {"name": "spread", "help": "tints fan out — one shared hue up to a third of the wheel"},
+    {"name": "blend", "help": "live picture <-> echoes carry the frame; bass flares the far echo"}
+  ]
+}

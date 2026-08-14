@@ -1,0 +1,9 @@
+{
+  "desc": "sixteen fantasy-console colors",
+  "params": [
+    {"name": "pixel", "help": "chunk size — 128x128 cart to big blocks"},
+    {"name": "dither", "help": "ordered stipple across the color steps; highs add sparkle"},
+    {"name": "secret", "help": "sweeps to the hidden second palette — murk and neon"},
+    {"name": "sat", "help": "grey at 0, true colors at halfway, driven hard above"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "e-paper grays, ghosting, the black refresh flash",
+  "params": [
+    {"name": "ghost", "help": "how hard past frames haunt the page; they always fade eventually"},
+    {"name": "rate", "help": "how often the panel does its full black-flash refresh sweep"},
+    {"name": "grays", "help": "2 to 6 gray levels — 4 at noon, like the real panels"},
+    {"name": "warmth", "help": "paper tint, cool gray-white to old cream"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "desc": "copy of a copy of a copy",
+  "params": [
+    {"name": "crush", "help": "soft grey copy <-> hard black-or-white threshold"},
+    {"name": "speck", "help": "toner grit flipping pixels in the mids"},
+    {"name": "copies", "help": "0 copies the live video; up high it re-copies its own print and the rot compounds"},
+    {"name": "toner", "help": "fresh black -> blue-black -> the red-brown of a dying drum"}
+  ]
+}

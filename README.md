@@ -202,6 +202,11 @@ RetroPie openFrameworks synths target.
 | `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) |
 | `ascii`, `gameboy`, `colorize`, `feedback`, `websafe_y2k`, `rgbdelay` | terminal glyphs, 4-shade dither, color, trails, web-safe GIF dither, RGB time split | GoatsAndMonkeys (original to this project) |
 | `vhs`, `solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`, `nightvis` | tape decay, darkroom tone fold, luma time-split, CMYK print dots, wax drip, comet trails, heat camera, intensifier tube | GoatsAndMonkeys (original to this project) |
+| `zxclash`, `c64`, `cga`, `virtualboy`, `pico8` | machine palettes: Spectrum attribute clash, pepto C64 with colour cells, CGA with NTSC artifacts, Virtual Boy reds, PICO-8 (+ its hidden palette) | GoatsAndMonkeys — palettes are facts, no code copied |
+| `flipdot`, `eink` | flip-dot sign with mechanical lag and scan waves; e-paper ghosting with a travelling full refresh | GoatsAndMonkeys (original to this project) |
+| `risograph`, `photocopy`, `cyanotype` | two-ink riso with misregistration, Nth-generation self-copying photocopier, blueprint / sun print | GoatsAndMonkeys (original to this project) |
+| `timeposter`, `motionmilk`, `echostrobe` | time posterized into flipboard ticks, movement painted as light, tinted delay-tap echoes | GoatsAndMonkeys (original to this project) |
+| `droste`, `moire`, `lenticular` | recursive picture-in-picture spiral, interference fringes drawing the video, ridged-postcard time flip | GoatsAndMonkeys (original to this project) |
 | `ruttetra` | luma lifts scanlines into a wire terrain | homage to the Rutt/Etra scan processor (1972 hardware) |
 | `packs/recurboy/*` | 15 shaders, **verbatim** (GPL-3.0, [pack LICENSE](packs/recurboy/LICENSE)) | official [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection (Tim Caldwell & contributors) |
 

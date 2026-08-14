@@ -1,0 +1,9 @@
+{
+  "desc": "spectrum attribute clash, two colours per cell",
+  "params": [
+    {"name": "cells", "help": "character cell size — 32 across at rest, the real machine"},
+    {"name": "bright", "help": "the bright bit: never at 0, luma-gated midway, always at full"},
+    {"name": "clash", "help": "cells rebel to wrong ink colours; bass re-deals which ones"},
+    {"name": "video", "help": "clean video ghosts back over the clash"}
+  ]
+}

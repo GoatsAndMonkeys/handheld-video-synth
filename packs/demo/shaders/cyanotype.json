@@ -1,0 +1,9 @@
+{
+  "desc": "prussian blue sun print",
+  "params": [
+    {"name": "print", "help": "blueprint linework <-> continuous-tone sun print"},
+    {"name": "edges", "help": "how little contrast it takes to draw a line"},
+    {"name": "expose", "help": "how much white comes up out of the blue"},
+    {"name": "age", "help": "fresh print <-> faded teal, whites yellowed"}
+  ]
+}

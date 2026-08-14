@@ -1,0 +1,9 @@
+{
+  "desc": "flip-dot sign with real mechanical lag",
+  "params": [
+    {"name": "dots", "help": "dots across the board — chunky lobby sign to fine ticker"},
+    {"name": "lag", "help": "how slowly each dot flips; up high, scene changes ripple across the board"},
+    {"name": "scan", "help": "dots wait for the row scan sweeping down the sign; bass flushes a wave of flips"},
+    {"name": "face", "help": "disc face colour — yellow through white to amber"}
+  ]
+}

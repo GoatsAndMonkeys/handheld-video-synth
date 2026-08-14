@@ -1,0 +1,9 @@
+{
+  "desc": "motion extraction — stillness sinks to dusk, movement pours milk",
+  "params": [
+    {"name": "gain", "help": "lift on the motion light; also how far back the comparison reaches"},
+    {"name": "hue", "help": "colour of the dusk the still picture sinks into"},
+    {"name": "signed", "help": "brightening and darkening split into complementary drifting tints"},
+    {"name": "live", "help": "live video crossfaded back over the milk — subtle layer at the top"}
+  ]
+}

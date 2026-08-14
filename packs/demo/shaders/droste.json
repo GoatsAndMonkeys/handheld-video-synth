@@ -1,0 +1,9 @@
+{
+  "desc": "the picture holds itself, spiralling inward",
+  "params": [
+    {"name": "scale",  "help": "how much smaller each level sits inside the last"},
+    {"name": "twist",  "help": "turn per level, either way (0.5 = straight in)"},
+    {"name": "drift",  "help": "the vanishing point orbits — 0 pins it to centre"},
+    {"name": "blend",  "help": "faint inner echo up to full hall-of-mirrors recursion"}
+  ]
+}
