@@ -2,6 +2,10 @@
 # HVS-80 launcher — called by EmulationStation with the .vsb ROM path.
 # Clears any stale instance/decoders first so sessions can never stack.
 pkill -f "python3 main.py --rom" 2>/dev/null
+pkill -f "webui.py" 2>/dev/null      # the web cart holds port 8080; a second
+                                     # launch would fail to bind, and leaving
+                                     # it up behind the synth serves files
+                                     # from a session the user thinks is over
 pkill -x ffmpeg 2>/dev/null
 cd /home/pi/handheld-video-synth
 # log on the SD card, not /tmp — recovering from a lockup means power-cycling,
