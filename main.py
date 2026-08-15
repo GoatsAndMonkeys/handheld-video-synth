@@ -728,7 +728,11 @@ class Streamer:
         cmd += (["-map", "0:v", "-map", "1:a",
                  "-vf", "vflip,setpts=PTS-STARTPTS"] + vcodec +
                 quality +
-                ["-g", str(fps * 2), "-pix_fmt", "yuv420p",
+                # output rate pinned to the input rate: rec_10 came out 25fps
+                # from a 15fps input, ffmpeg upsampling by dup (2796 of 6992
+                # frames) for no stated reason. Every duplicated frame is
+                # encoder time spent re-proving judder.
+                ["-r", str(fps), "-g", str(fps * 2), "-pix_fmt", "yuv420p",
                  "-af", "asetpts=N/SR/TB",
                  "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-shortest"])
         # -shortest belongs on every destination, file included. It was moved
@@ -864,6 +868,14 @@ class Streamer:
             pass  # pipe full or encoder gone: drop, never stall
 
     def close(self):
+        # the one number that predicts sync health: how far the writer sat
+        # behind its clock. A persistent deficit means the encoder cannot
+        # hold this fps and the take will land short — lower the rate.
+        deficit = int(self._abytes * self.fps / 44100.0) - self.written
+        if deficit > self.fps:      # more than a second behind
+            print("recorder: WARNING writer %.1fs behind the audio clock "
+                  "(%d frames) — encoder cannot sustain %dfps"
+                  % (deficit / float(self.fps), deficit, self.fps))
         try:
             os.close(self._aw)
         except OSError:
@@ -2156,8 +2168,14 @@ class Instrument:
         self.output_idx = i
 
     def start_stream(self, dest):
+        # 15 was tuned for RTMP bandwidth and quietly capped SD recordings
+        # too — under wallclock stamping ffmpeg's dups hid it, but the
+        # master clock obeys fps exactly, so the cap became visible judder.
+        # 20 is what h264_v4l2m2m sustains at 4500k on heavy content; the
+        # writer logs a warning at close if the encoder ever falls behind.
+        to_file = not dest.startswith(("rtmp", "udp:", "srt:"))
         self.streamer = Streamer(_find_ffmpeg() or "ffmpeg",
-                                 self.w, self.h, 15, dest)
+                                 self.w, self.h, 20 if to_file else 15, dest)
         self._aud_t = time.time()
         self._aud_owed = 0.0
         self._aud_buf = bytearray()
