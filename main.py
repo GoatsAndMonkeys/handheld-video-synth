@@ -672,22 +672,24 @@ class Streamer:
             cmd += ["-stats", "-stats_period", "2"]
         cmd += ["-f", "rawvideo", "-pix_fmt", "rgb24",
                "-s", "%dx%d" % (w, h), "-r", str(fps),
-               "-use_wallclock_as_timestamps", "1", "-i", "pipe:0"]
+               "-i", "pipe:0"]
         # audio = the exact PCM the instrument is playing (clip sound or
         # radio), fed live via push_audio — the stream carries what you hear
         #
-        # Both inputs must be stamped the same way. Wallclock stamps put video
-        # at Unix epoch seconds; raw PCM with no stamps starts at zero. ffmpeg
-        # reads whichever input is furthest behind, so a zero-based audio pipe
-        # is chased forever against a video clock 56 years ahead and video's
-        # stdin is never drained again — the writer blocks mid-frame, the
-        # muxer never opens the output, and the recording is 0 bytes.
-        # Measured on the deck: 4 frames drained before the stall with the
-        # flag on video alone, 78 with it on both.
+        # AUDIO IS THE MASTER CLOCK. The writer thread slaves video to the
+        # count of audio bytes actually delivered (frame n goes out when
+        # sample n*22050/fps has), so the two streams advance on the same
+        # number and cannot disagree — wallclock stamping tried to let ffmpeg
+        # reconcile two independent clocks and every transition burst became
+        # a permanent A/V offset (rec_09: silence clusters at each clip
+        # switch, 0.6s apart by the end). Both inputs are now plain
+        # zero-based counts: video CFR at -r, audio at N/SR/TB below. Both
+        # start at zero together, so ffmpeg's read balancing (the 0-byte
+        # failure of old: one input stamped at the epoch, the other at zero,
+        # video never drained past frame 4) stays symmetric.
         self._ar, self._aw = os.pipe()
         os.set_blocking(self._aw, False)
-        cmd += ["-use_wallclock_as_timestamps", "1",
-                "-f", "s16le", "-ar", "22050", "-ac", "1",
+        cmd += ["-f", "s16le", "-ar", "22050", "-ac", "1",
                 "-i", "pipe:%d" % self._ar]
         # the Pi hw encoder emits SPS/PPS + IDR exactly once, so late
         # joiners on a UDP stream can never sync — the mixer path uses
@@ -768,15 +770,53 @@ class Streamer:
         import queue
         import threading
         self.written = 0
+        self.fps = fps
+        self._abytes = 0          # audio bytes DELIVERED — the master clock
+        self._last = None         # last frame written; repeated to catch up
+        self._closing = False
         self._q = queue.Queue(maxsize=2)
         self._thread = threading.Thread(target=self._writer, daemon=True)
         self._thread.start()
 
     def _writer(self):
+        """Write frames on the audio clock.
+
+        The video input is plain CFR: its duration is exactly frames/fps,
+        nothing more. So the writer's one job is to have written frame n by
+        the time audio sample n*22050/fps has been delivered — repeating the
+        last frame when the renderer is behind the clock, discarding when it
+        is ahead. Whatever the audio path does (pads, drops, bursts), the
+        picture follows the same count and the streams cannot drift apart.
+        """
+        import queue as _qmod
         while True:
-            raw = self._q.get()
-            if raw is None:
+            target = int(self._abytes * self.fps / 44100.0)  # bytes: 22050*2
+            if self.written >= target and not self._closing:
+                # ahead of the clock: keep only the freshest frame so the
+                # next write is current, and wait for audio to catch up
+                try:
+                    raw = self._q.get(timeout=0.01)
+                    if raw is None:
+                        self._closing = True
+                        continue
+                    self._last = raw
+                except _qmod.Empty:
+                    pass
+                continue
+            if self._closing and self._q.empty():
                 break
+            raw = None
+            try:
+                raw = self._q.get_nowait()
+                if raw is None:
+                    self._closing = True
+                    continue
+                self._last = raw
+            except _qmod.Empty:
+                raw = self._last      # renderer behind: repeat the frame
+            if raw is None:
+                time.sleep(0.005)     # nothing rendered yet at all
+                continue
             try:
                 self.proc.stdin.write(raw)
                 self.written += 1
@@ -816,7 +856,10 @@ class Streamer:
         if not pcm or self.dead:
             return
         try:
-            os.write(self._aw, pcm)
+            # count what actually entered the pipe, partial writes included:
+            # _abytes is the master clock, and a byte the encoder never got
+            # must not advance the picture
+            self._abytes += os.write(self._aw, pcm)
         except (BlockingIOError, BrokenPipeError, OSError):
             pass  # pipe full or encoder gone: drop, never stall
 
