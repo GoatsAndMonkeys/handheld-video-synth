@@ -518,12 +518,58 @@ def lan_ip():
         s.close()
 
 
+def watch_quit_combo():
+    """Select+Start held together exits — the same combo that quits the
+    synth, so the handheld has one consistent 'leave this cart' gesture.
+    Runs in a thread; on a machine with no evdev (desktop) it just returns
+    and Ctrl-C remains the way out."""
+    try:
+        import evdev
+    except ImportError:
+        return
+    try:
+        devs = []
+        for path in evdev.list_devices():
+            try:
+                d = evdev.InputDevice(path)
+                if evdev.ecodes.EV_KEY in d.capabilities():
+                    devs.append(d)
+            except OSError:
+                pass
+        if not devs:
+            return
+        import select as _select
+        ec = evdev.ecodes
+        held = {}
+        while True:
+            ready, _, _ = _select.select(devs, [], [], 1.0)
+            for dev in ready:
+                try:
+                    for e in dev.read():
+                        if e.type == ec.EV_KEY and e.code in (
+                                ec.BTN_SELECT, ec.BTN_START):
+                            held[e.code] = bool(e.value)
+                except OSError:
+                    devs.remove(dev)
+                    if not devs:
+                        return
+            if held.get(ec.BTN_SELECT) and held.get(ec.BTN_START):
+                print("web: Select+Start — shutting down")
+                # a clean daemon-thread exit: the whole process goes, and
+                # EmulationStation gets its screen back
+                os._exit(0)
+    except Exception as exc:
+        print("web: gamepad watcher off (%s); quit via Ctrl-C" % exc)
+
+
 def main():
+    import threading
+    threading.Thread(target=watch_quit_combo, daemon=True).start()
     url = "http://%s:%d" % (lan_ip(), PORT)
     bar = "=" * (len(url) + 8)
     print("\n%s\n    %s\n%s\n" % (bar, url, bar))
     print("HVS-80 web console. Recordings, uploads, decks.")
-    print("Quit with the GPi's Start+Select, or Ctrl-C over ssh.\n")
+    print("Quit with the GPi's Select+Start, or Ctrl-C over ssh.\n")
     sys.stdout.flush()
     Server(("0.0.0.0", PORT), Handler).serve_forever()
 
