@@ -847,6 +847,15 @@ class Streamer:
         except Exception:
             pass
 
+    def wants_frame(self):
+        """Is a readback worth its pipeline stall right now? Yes while the
+        writer is at or behind its clock (small lookahead so the next tick
+        is already covered) and the queue can take the frame."""
+        if self.dead:
+            return False
+        target = int(self._abytes * self.fps / 44100.0)
+        return self.written <= target + 1 and not self._q.full()
+
     def push(self, raw):
         if self.dead or self.proc.poll() is not None:
             self.dead = True
@@ -2203,7 +2212,14 @@ class Instrument:
 
     def _push_stream(self):
         self._frame_no += 1
-        if self.streamer is not None and self._frame_no % 2 == 0:
+        # Read back only when the recorder can use the frame. The old
+        # every-other-frame divisor (streaming-era) halved recorded
+        # freshness: a renderer at 10fps under a heavy chain delivered 5
+        # fresh frames/s and the writer repeated the rest. Asking the
+        # streamer instead means every rendered frame counts while the
+        # writer is hungry — and when it is ahead, skipping the readback
+        # also skips a full GPU pipeline stall, which the renderer feels.
+        if self.streamer is not None and self.streamer.wants_frame():
             GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
             raw = GL.glReadPixels(0, 0, self.w, self.h,
                                   GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
