@@ -131,7 +131,7 @@ bar shows:
 | if the source contains | then |
 | --- | --- |
 | `u_time` or `ftime` | the **speed** slot appears in the bar |
-| neither | the effect is *clockless*: the speed slot is hidden, and the help panel says so. Half the house pack is clockless — `ascii`, `gameboy`, `delay`, `solarize` all sit still until the picture moves |
+| neither | the effect is *clockless*: the speed slot is hidden, and the help panel says so. Roughly half the house packs are clockless — `ascii`, `gameboy`, `halftone`, `solarize` all sit still until the picture moves |
 | `u_x3` | a **fourth** knob slot appears. Without it the effect keeps the three-param recurBOY layout and shows no dead slot |
 | `u_a0`, `u_a1` or `u_a2` | the effect is marked `♪` in the bar and the deck, meaning "moves with the sound" |
 

@@ -1540,12 +1540,18 @@ class Instrument:
         packs = [os.path.relpath(p, ROOT)
                  for p in sorted(glob.glob(os.path.join(ROOT, "packs", "*")))
                  if os.path.isdir(p)]
-        # the user's own packs head the menu, guests follow A-Z
+        # the house packs head the menu, guests follow A-Z. Matched on the
+        # hvs80- prefix and not a fixed list, so a pack added later rises to
+        # the top on its name alone rather than needing an edit here.
         house = ("hvs80-synth", "hvs80-pixel", "hvs80-glitch")
 
         def order(pack):
             b = os.path.basename(pack)
-            return (0, house.index(b), "") if b in house else (1, 0, b)
+            if b in house:                  # the founding three, in deck order
+                return (0, house.index(b), "")
+            if b.startswith("hvs80-"):      # any later house pack, A-Z below
+                return (0, len(house), b)
+            return (1, 0, b)
 
         return sorted(packs, key=order)
 
