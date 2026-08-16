@@ -86,8 +86,9 @@ The same clean-room rule produced three more packs:
   source never read). [`packs/livecode/CREDITS.md`](packs/livecode/CREDITS.md).
 
 `ascii`, `gameboy`, `colorize`, `feedback`, `websafe_y2k`, `rgbdelay`, `vhs`,
-`solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`, `nightvis`,
-`matrix` (retired) and the engine itself are original to this project, by
+`solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`,
+`matrix`, `fisheye`, `hype`, `inkbleed`, `lenticular`, `nightvis` (retired)
+and the engine itself are original to this project, by
 GoatsAndMonkeys. `ruttetra` is a from-scratch homage to the Rutt/Etra video
 synthesizer's deflection-modulation technique (1972 analog hardware, no code
 lineage). These live in the house packs — `packs/hvs80-synth`,

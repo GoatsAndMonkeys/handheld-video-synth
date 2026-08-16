@@ -232,10 +232,9 @@ class DesktopPlatform:
     RAIL = (14, 56, 130)
     RAIL_THUMB = (130, 190, 240)
     RAIL_W = 5
-    MIN_COLS = 52
 
     def _osd_scale(self, w):
-        return max(1, int(w) // (osdfont.ADV * self.MIN_COLS))
+        return osdfont.scale_for(w)
 
     def _osd_text(self, surf, x, y, s, scale, colour):
         for rx, ry, rw, rh in osdfont.runs(s, int(x), int(y), scale):
@@ -2650,8 +2649,13 @@ class Instrument:
     def _patch_cols(self):
         """Columns across the real surface. This is 640px wide, not the
         320 of the panel it is scaled onto — assuming the smaller number
-        cost half the row and squeezed names that never needed squeezing."""
-        return max(20, (self.w - 8) // max(1, int(HEAD_ROW_PX * 0.6)))
+        cost half the row and squeezed names that never needed squeezing.
+
+        Measured from the font rather than guessed at from the row height:
+        the status line right-aligns the battery against this number, and
+        an estimate that is one column out shows up as a ragged edge."""
+        cell = osdfont.ADV * osdfont.scale_for(self.w)
+        return max(20, (self.w - 8) // cell)
 
     def _patch_rows(self, st, is_focus):
         """One line per effect: its name, then every knob with a label.
@@ -2720,14 +2724,22 @@ class Instrument:
         # would be one every frame, and unreadable at 20fps besides.
         if self._morph is not None:
             flags += "  MORPH"
-        flags += self.batt.label()
         if self.streamer is not None and not self.streamer.dead:
             flags += {1: "  MIX", 2: "  REC", 3: "  LIVE"}.get(self.output_idx, "")
         if self.deck and self.deck_mode:
             pos = "D%d/%d" % (self.deck_idx + 1, len(self.deck))
         else:
             pos = "%d/%d" % (self.step_idx + 1, len(self.playlist["steps"]))
-        lines.append("  %s%s" % (pos, flags))
+        # Battery sits hard right, everything else reads from the left. It is
+        # the one field that changes without you touching anything, so a
+        # fixed edge lets you find it without reading the line — and it stops
+        # the flags shoving it sideways every time FRZ or MORPH appears.
+        left = "  %s%s" % (pos, flags)
+        batt = self.batt.label().strip()
+        if batt:
+            pad = self._patch_cols() - len(left) - len(batt)
+            left += (" " * pad if pad >= 1 else "  ") + batt
+        lines.append(left)
         err = getattr(self, "_load_err", None)
         if err and time.time() < err[1]:
             lines.append(("  " + err[0])[:self._patch_cols()])

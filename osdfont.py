@@ -154,6 +154,19 @@ _MISSING = ("####", "#  #", "#  #", "#  #", "#  #", "#  #",
             "####", "    ")
 
 
+MIN_COLS = 52       # never set a panel narrower than this many characters
+
+
+def scale_for(width, min_cols=MIN_COLS):
+    """Largest whole-pixel scale that still fits min_cols characters.
+
+    One definition, used by both backends and by the engine's own column
+    arithmetic. It used to be a magic 0.6-of-the-row-height factor in
+    three places, which happened to agree with the font by luck; anything
+    that right-aligns text needs the real number, not a coincidence."""
+    return max(1, int(width) // (ADV * min_cols))
+
+
 def glyph(ch):
     return _G.get(ch, _MISSING)
 

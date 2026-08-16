@@ -11,10 +11,9 @@ to carry.
 | --- | --- |
 | `feedback` | plain video feedback: amount, zoom, hue drift, spin |
 | `colorize`, `colorpop` | linear grade; filmic punch with vibrance, bloom and split tone |
-| `hype` | wide-angle lens and a pop grade in one pass |
-| `fisheye`, `droste`, `moire`, `lenticular` | barrel lens; recursive self-containing spiral; interference fringes drawing the picture; ridged-postcard time flip |
-| `vhs`, `nightvis`, `thermal` | tape decay; intensifier tube; heat camera |
-| `solarize`, `melt`, `inkbleed`, `reactdiff` | darkroom tone fold; wax drip; nib bleeding through a fibre field; two invented chemicals fed by the picture |
+| `droste`, `moire` | recursive self-containing spiral; interference fringes drawing the picture |
+| `vhs`, `thermal` | tape decay; heat camera |
+| `solarize`, `melt`, `reactdiff` | darkroom tone fold; wax drip; two invented chemicals fed by the picture |
 | `rgbdelay`, `lumatrail`, `timegrad`, `timeposter`, `motionmilk`, `echostrobe` | RGB time split; comet trails; luma time-split; flipboard ticks; movement painted as light; tinted delay-tap echoes |
 | `ruttetra` | luma lifts scanlines into a wire terrain |
 

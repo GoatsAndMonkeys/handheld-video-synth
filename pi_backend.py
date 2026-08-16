@@ -510,15 +510,7 @@ def _font(size):
 # path on the device, which previously fell back to PIL's default face and
 # looked nothing like the rest of the UI.
 # _font survives for glyph_atlas, which feeds the ascii effect, not the menus.
-MIN_COLS = 52       # never set the menu narrower than this many characters
-
-
-def _scale_for(width):
-    """Largest whole-pixel scale that still fits MIN_COLS characters.
-
-    Whole numbers only. A bitmap font at 1.5x is a smeared bitmap font, and
-    the point of this face is that every stroke lands on a pixel."""
-    return max(1, int(width) // (osdfont.ADV * MIN_COLS))
+_scale_for = osdfont.scale_for      # one definition, shared with the engine
 
 
 SCALE = 1

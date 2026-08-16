@@ -202,13 +202,13 @@ RetroPie openFrameworks synths target.
 | `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) — `packs/vserpi` |
 | `scopexy`, `fourband`, `meshscan`, `autolife` | vector beam on slow phosphor, fixed four-band colorizer/solarizer, luma-displaced wire weave, interfering oscillator fields | phosphorm / CHROMATIC_ABERRATION1 / spectral_mesh + auto_mesh / artificial_life (Andrei Jay) — `packs/vserpi` |
 | `ascii`, `gameboy`, `colorize`, `feedback`, `websafe_y2k`, `rgbdelay` | terminal glyphs, 4-shade dither, color, trails, web-safe GIF dither, RGB time split | GoatsAndMonkeys (original to this project) |
-| `vhs`, `solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`, `nightvis` | tape decay, darkroom tone fold, luma time-split, CMYK print dots, wax drip, comet trails, heat camera, intensifier tube | GoatsAndMonkeys (original to this project) |
+| `vhs`, `solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal` | tape decay, darkroom tone fold, luma time-split, CMYK print dots, wax drip, comet trails, heat camera | GoatsAndMonkeys (original to this project) |
 | `zxclash`, `c64`, `cga`, `virtualboy`, `pico8` | machine palettes: Spectrum attribute clash, pepto C64 with colour cells, CGA with NTSC artifacts, Virtual Boy reds, PICO-8 (+ its hidden palette) | GoatsAndMonkeys — palettes are facts, no code copied |
 | `flipdot`, `eink` | flip-dot sign with mechanical lag and scan waves; e-paper ghosting with a travelling full refresh | GoatsAndMonkeys (original to this project) |
 | `bitstarve`, `jpegcrush` | the two compression effects, sitting together: a starved video *stream* (stale macroblocks held from the last frame, flat-block quantise with mosquito edges, chroma bleeding across block borders, a rolling keyframe sweep) and a crushed *still* (a real 4x4 DCT quantised to the floor) | GoatsAndMonkeys (original to this project) |
 | `risograph`, `photocopy`, `cyanotype` | two-ink riso with misregistration, Nth-generation self-copying photocopier, blueprint / sun print | GoatsAndMonkeys (original to this project) |
 | `timeposter`, `motionmilk`, `echostrobe` | time posterized into flipboard ticks, movement painted as light, tinted delay-tap echoes | GoatsAndMonkeys (original to this project) |
-| `droste`, `moire`, `lenticular` | recursive picture-in-picture spiral, interference fringes drawing the video, ridged-postcard time flip | GoatsAndMonkeys (original to this project) |
+| `droste`, `moire` | recursive picture-in-picture spiral, interference fringes drawing the video | GoatsAndMonkeys (original to this project) |
 | `ruttetra` | luma lifts scanlines into a wire terrain | homage to the Rutt/Etra scan processor (1972 hardware) |
 | `packs/recurboy/*` | 15 shaders, **verbatim** (GPL-3.0, [pack LICENSE](packs/recurboy/LICENSE)) | official [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection (Tim Caldwell & contributors) |
 
@@ -365,7 +365,7 @@ ported packs also ship the upstream `LICENSE`:
 
 | pack | what | provenance |
 | --- | --- | --- |
-| `hvs80-synth` | the house instrument: feedback, colour grading, lenses, tape and camera character, time manipulation | original to this project |
+| `hvs80-synth` | the house instrument: feedback, colour grading, optical recursion, tape and camera character, time manipulation | original to this project |
 | `vserpi` | 18 effects after the waaave_pool / VSERPI family: warped feedback zones and banks, gravity lensing, delay lines, convolution chaos, scopes, glyph fields, automata | clean-room after [Andrei Jay](https://andreijaycreativecoding.com) (no licence upstream → no code copied) |
 | `recurboy` | 15 shaders, verbatim | [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection, GPL-3.0 |
 | `recur` | five 2-input mixers, ported | r_e_c_u_r, GPL-3.0 |

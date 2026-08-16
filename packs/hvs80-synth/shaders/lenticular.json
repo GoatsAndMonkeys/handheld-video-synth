@@ -1,9 +1,0 @@
-{
-  "desc": "ridged-plastic card flipping between time-slices",
-  "params": [
-    {"name": "ridges", "help": "slat width — fine ribs to broad slats"},
-    {"name": "sweep",  "help": "how fast the card tilts past the ridges"},
-    {"name": "spread", "help": "how far apart in time the facets read"},
-    {"name": "glint",  "help": "plastic highlight riding the ridges as the card turns"}
-  ]
-}
