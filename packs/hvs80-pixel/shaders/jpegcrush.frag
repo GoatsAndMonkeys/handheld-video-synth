@@ -93,8 +93,12 @@ void main() {
     mat4 F = M * P * MT;
 
     // quality drives the step; ring spares the high-frequency terms, which
-    // is where the halo along hard edges comes from
-    float q = (0.006 + u_x0 * u_x0 * 0.20);
+    // is where the halo along hard edges comes from.
+    // Geometric, not quadratic: a quantiser is felt in ratios, so a square
+    // law spends the bottom half of the knob travelling from "invisible" to
+    // "nearly invisible" and crams every usable setting into the last
+    // third. Doubling steps evenly puts change under the whole sweep.
+    float q = 0.006 * pow(25.0, u_x0);
     float hf = mix(1.0, 0.18, u_x3);
     mat4 Q = QY;
     Q[0] *= q; Q[1] *= q * mix(1.0, hf, 0.33);
@@ -114,10 +118,19 @@ void main() {
                  quad.y) * 0.25;
     float ay = dot(a, W);
     vec2 cbcr = vec2(a.b - ay, a.r - ay);
-    float cq = 0.02 + u_x2 * 0.5;
+    // Cb and Cr live in about [-0.5, 0.5] here, so the old 0.02..0.52 step
+    // left three levels at the shipped default and exactly one at the top:
+    // every colour snapped to zero and the effect desaturated to grey
+    // instead of crushing. Subsampling costs colour *resolution* — the 2x2
+    // quadrant average above is what does that — not saturation.
+    float cq = 0.004 + u_x2 * 0.07;
     cbcr = floor(cbcr / cq + 0.5) * cq;
 
-    vec3 rgb = vec3(y + cbcr.y, y - 0.344 * cbcr.x - 0.714 * cbcr.y,
+    // green from the raw differences, not from normalised Cb/Cr: the
+    // familiar 0.344 and 0.714 assume Cb=(B-Y)/1.772 and Cr=(R-Y)/1.402,
+    // and applying them straight to (B-Y, R-Y) overshoots green by those
+    // same factors — up to 20/255 on saturated reds and greens.
+    vec3 rgb = vec3(y + cbcr.y, y - 0.194 * cbcr.x - 0.509 * cbcr.y,
                     y + cbcr.x);
     gl_FragColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
 }
