@@ -172,9 +172,9 @@ steps 7–9.
    SOURCES             │        EFFECT CHAIN           │            SINKS
                        │  (1–3 stacked GLSL layers)    │
   plasma (gen) ──┐     │                               │   ┌── screen (dispmanx/GLES2
-  clips ─────────┼──►  │  layer1 ─► layer2 ─► layer3   ├──►│           or desktop GL)
-  camera ────────┘     │     ▲   feedback buffer   │   │   ├── mp4 recorder ──► clips/
-                       │     └──── prev frame ◄────┘   │   ├── RTMP (YouTube Live)
+  clips ─────────┤     │  layer1 ─► layer2 ─► layer3   ├──►│           or desktop GL)
+  jellyfin ──────┼──►  │     ▲   feedback buffer   │   │   ├── mp4 recorder ──► clips/
+  camera ────────┘     │     └──── prev frame ◄────┘   │   ├── RTMP (YouTube Live)
   AUDIO                └───────────────▲───────────────┘   └── UDP/MPEG-TS ─► OBS mixer
   clip sound ──┐                       │
   NTS radio ───┴─► ffmpeg ─► PCM ─► low/mid/high bands ─► LFOs on any param
@@ -189,26 +189,33 @@ RetroPie openFrameworks synths target.
 
 | shader | what it does | origin / homage |
 | --- | --- | --- |
-| `waaave` + 4 banks | feedback zones: mix/lumakey, drift, color life/death, mirrors | [waaave_pool](https://github.com/ex-zee-ex/waaaave_pool) (Andrei Jay) |
-| `delay` | true video delay line — echoes from up to ~a second ago | FB_DELAY_REAL / gravity_waaaves (Andrei Jay) |
-| `convolve` | morphing blur↔sharpen kernels with feedback resonance | convolutional_chaos (Andrei Jay) |
-| `phosphor` | audio-driven Lissajous scope with phosphor decay | phosphorm (Andrei Jay) |
-| `glyphworld` | audio-reactive glyph fields over video | glyph_worlds0 (Andrei Jay) |
-| `chromab` | brightness-band colorizer / solarizer | CHROMATIC_ABERRATION (Andrei Jay) |
-| `lifeosc` | chaotic video oscillators, video-phase-modulated | artificial_life (Andrei Jay) |
-| `slitscan` | moving scanline freezes time across space | temporal_vortex (Andrei Jay) |
-| `haeckel` | superformula radiolaria with feedback trails | SUPER_HAECKEL_ADVENTURES_64 (Andrei Jay) |
-| `gravity` | orbiting attractor lenses the feedback | gravity_waaaves (Andrei Jay) |
-| `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) |
+| `waaave` + 4 banks | feedback zones: mix/lumakey, drift, color life/death, mirrors | [waaave_pool](https://github.com/ex-zee-ex/waaaave_pool) (Andrei Jay) — `packs/vserpi` |
+| `delay` | true video delay line — echoes from up to ~a second ago | FB_DELAY_REAL / gravity_waaaves (Andrei Jay) — `packs/vserpi` |
+| `convolve` | morphing blur↔sharpen kernels with feedback resonance | convolutional_chaos (Andrei Jay) — `packs/vserpi` |
+| `phosphor` | audio-driven Lissajous scope with phosphor decay | phosphorm (Andrei Jay) — `packs/vserpi` |
+| `glyphworld` | audio-reactive glyph fields over video | glyph_worlds0 (Andrei Jay) — `packs/vserpi` |
+| `chromab` | brightness-band colorizer / solarizer | CHROMATIC_ABERRATION (Andrei Jay) — `packs/vserpi` |
+| `lifeosc` | chaotic video oscillators, video-phase-modulated | artificial_life (Andrei Jay) — `packs/vserpi` |
+| `slitscan` | moving scanline freezes time across space | temporal_vortex (Andrei Jay) — `packs/vserpi` |
+| `haeckel` | superformula radiolaria with feedback trails | SUPER_HAECKEL_ADVENTURES_64 (Andrei Jay) — `packs/vserpi` |
+| `gravity` | orbiting attractor lenses the feedback | gravity_waaaves (Andrei Jay) — `packs/vserpi` |
+| `cellular` | numerical-feedback automata seeded by video | integerfeedback / cellular_automata_lab (Andrei Jay) — `packs/vserpi` |
+| `scopexy`, `fourband`, `meshscan`, `autolife` | vector beam on slow phosphor, fixed four-band colorizer/solarizer, luma-displaced wire weave, interfering oscillator fields | phosphorm / CHROMATIC_ABERRATION1 / spectral_mesh + auto_mesh / artificial_life (Andrei Jay) — `packs/vserpi` |
 | `ascii`, `gameboy`, `colorize`, `feedback`, `websafe_y2k`, `rgbdelay` | terminal glyphs, 4-shade dither, color, trails, web-safe GIF dither, RGB time split | GoatsAndMonkeys (original to this project) |
 | `vhs`, `solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`, `nightvis` | tape decay, darkroom tone fold, luma time-split, CMYK print dots, wax drip, comet trails, heat camera, intensifier tube | GoatsAndMonkeys (original to this project) |
 | `zxclash`, `c64`, `cga`, `virtualboy`, `pico8` | machine palettes: Spectrum attribute clash, pepto C64 with colour cells, CGA with NTSC artifacts, Virtual Boy reds, PICO-8 (+ its hidden palette) | GoatsAndMonkeys — palettes are facts, no code copied |
 | `flipdot`, `eink` | flip-dot sign with mechanical lag and scan waves; e-paper ghosting with a travelling full refresh | GoatsAndMonkeys (original to this project) |
+| `bitstarve` | starved video stream: stale macroblocks held from the last frame, flat-block quantise with mosquito edges, chroma bleeding across block borders, a rolling keyframe sweep | GoatsAndMonkeys (original to this project) |
 | `risograph`, `photocopy`, `cyanotype` | two-ink riso with misregistration, Nth-generation self-copying photocopier, blueprint / sun print | GoatsAndMonkeys (original to this project) |
 | `timeposter`, `motionmilk`, `echostrobe` | time posterized into flipboard ticks, movement painted as light, tinted delay-tap echoes | GoatsAndMonkeys (original to this project) |
 | `droste`, `moire`, `lenticular` | recursive picture-in-picture spiral, interference fringes drawing the video, ridged-postcard time flip | GoatsAndMonkeys (original to this project) |
 | `ruttetra` | luma lifts scanlines into a wire terrain | homage to the Rutt/Etra scan processor (1972 hardware) |
 | `packs/recurboy/*` | 15 shaders, **verbatim** (GPL-3.0, [pack LICENSE](packs/recurboy/LICENSE)) | official [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection (Tim Caldwell & contributors) |
+
+The `packs/vserpi` rows are **clean-room reimplementations** after Andrei
+Jay's instruments — his repositories carry no determinable licence, so none
+of his code is here; they ship under his lineage's own name rather than
+under ours ([`packs/vserpi/CREDITS.md`](packs/vserpi/CREDITS.md)).
 
 Attribution and licensing details for every effect: [CREDITS.md](CREDITS.md).
 
@@ -245,16 +252,71 @@ Desktop keys: arrows, Z punch, X dice, C freeze, V LFO (hold V+↑/↓ bands),
 A/S shoulders, Tab loader, M build/play, L stack, Backspace clear layers,
 [ ] layer focus, F1 overlay, F5 screenshot, Esc quit.
 
+## MIDI
+
+Plug a class-compliant USB MIDI controller in and it plays the instrument
+alongside the buttons — knobs on the params, pads on the actions, program
+changes on the patches. Nothing to install: the Pi reads ALSA's raw MIDI
+devices directly, the desktop uses `pygame.midi`. No controller attached
+changes nothing.
+
+| MIDI | does |
+| --- | --- |
+| CC (mapped) | sets a param on the focused effect — absolute, so the knob's position *is* the value |
+| pitch bend | rides whichever knob is selected, no mapping needed |
+| note (mapped) | any button action — `next`, `prev`, `punch_on`, `freeze`, `randomize`, `layer_add`, … |
+| program change | jumps to that patch in the active deck — **with the morph time applied**, so a sequencer can glide your set |
+
+Defaults assume a generic keyboard (CC 1 → x0, then 71/74/76 → x1/x2/x3,
+CC 7 → speed). To use your own controller's numbers, run `python3 midi.py`,
+move every control, note what it prints, and write a `midi.json` next to
+`main.py`:
+
+```json
+{
+  "channel": 1,
+  "cc":    {"21": "x0", "22": "x1", "23": "x2", "24": "x3", "25": "speed"},
+  "notes": {"36": "next", "35": "prev", "38": "punch_on", "40": "freeze"}
+}
+```
+
+`channel` is optional (omit for omni). A CC mapped to a button name works
+too — pads that send 127/0 instead of notes fire on the upper half of the
+travel. Each section you write replaces that default section wholesale, so
+you never inherit a stray default grabbing a knob you didn't map.
+
+## Jellyfin
+
+Point the synth at your own [Jellyfin](https://jellyfin.org) server and
+your film library becomes a video source — the Loader lists it beside the
+clip collections. Put a `jellyfin.json` next to `main.py` (gitignored,
+like `stream.json`):
+
+```json
+{"url": "http://your-server:8096", "api_key": "..."}
+```
+
+The API key comes from Jellyfin's dashboard (*Administration → API Keys*);
+`username`/`password` works instead if you prefer. The server transcodes
+to 480×360 H.264 on the way out, so the handheld never tries to decode a
+4K remux — the transcode is the point, not a compromise. Titles are cached
+on disk so the menu opens instantly and works offline; **✱ refresh library
+from the server** in the Jellyfin folder re-reads it.
+
 ## The Loader (Start)
 
 ```
-Video source :  <playlist collections → videos, camera, plasma>
+Video source :  <playlist collections → videos, camera, plasma,
+                 Jellyfin library if configured>
 Audio source :  no audio / video's own sound / NTS 1 / NTS 2
 Output       :  screen only / to mixer (laptop) / record to SD / go live
                 + "show UI in output" — put the control bar, menus and
                   FPS in the stream (demo mode; normally output is clean)
-FX deck      :  effect setlists from every pack + "* everything"
-My decks     :  named decks — build, name, reorder, copy scenes
+FX deck      :  effect setlists from every pack — your own first, then
+                the homages and guest packs, each with its effect count
+                and credit
+Patch decks  :  named decks — build, name, reorder, copy patches, and the
+                morph time (see Decks)
 ```
 
 A enters/applies, B backs out, Start closes. Everything applies live —
@@ -268,7 +330,18 @@ named decks** — one per gig, one per mood. In **BUILD** mode L/R browses
 effects while you save scenes; in **PLAY** mode L/R walks the active deck's
 scenes.
 
-The *My decks* menu is the deck manager: **A** opens a deck (or plays a
+**Morphing.** By default a patch change is a hard cut. Set a **morph**
+time in the *Patch decks* menu (0.25 s to 8 s) and walking patches glides
+instead: every knob eases from where it is to where the next patch wants
+it, so a set breathes between scenes rather than snapping. Only slots
+still running the same shader can glide — params mean different things to
+different effects, so a changed effect takes its own values at once. The
+bar shows **MORPH** while a glide is in flight, and the numbers on it are
+the patch you are gliding *to*. Walking three patches in a second glides
+continuously through them; turning a knob mid-glide edits the destination,
+and the glide follows it. The setting persists in `decks.json`.
+
+The *Patch decks* menu is the deck manager: **A** opens a deck (or plays a
 scene), **X** renames a deck or scene with the on-screen keyboard
 (d-pad picks letters, LSDJ-style), **Y** deletes, **Select+↑/↓** reorders
 scenes, and **L/R on a scene copies it into the neighboring deck**.
@@ -285,22 +358,26 @@ packs/<name>/
   playlists/*.json   effect setlists; decks.json = the user's named decks
 ```
 
-Ten packs ship with the instrument. Per-pack `CREDITS.md` files carry the
-per-shader provenance; ported packs also ship the upstream `LICENSE`:
+Thirteen packs ship with the instrument. The FX deck lists one row per pack —
+`<pack> <effects> — <artist>` — so a pack is the unit an artist ships and the
+unit you browse. Per-pack `CREDITS.md` files carry the per-shader provenance;
+ported packs also ship the upstream `LICENSE`:
 
 | pack | what | provenance |
 | --- | --- | --- |
-| `hvs80-synth` | the core instrument: waaave family, scopes, meshes, automata, house effects | original + clean-room after [Andrei Jay](https://andreijaycreativecoding.com) (no licence upstream → no code copied) |
+| `hvs80-synth` | the house instrument: feedback, colour grading, lenses, tape and camera character, time manipulation | original to this project |
+| `vserpi` | 18 effects after the waaave_pool / VSERPI family: warped feedback zones and banks, gravity lensing, delay lines, convolution chaos, scopes, glyph fields, automata | clean-room after [Andrei Jay](https://andreijaycreativecoding.com) (no licence upstream → no code copied) |
 | `recurboy` | 15 shaders, verbatim | [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection, GPL-3.0 |
 | `recur` | five 2-input mixers, ported | r_e_c_u_r, GPL-3.0 |
 | `hvs80-glitch` | signal damage: datamosh, sync corrupt, TBC stutter, circuit bending | original to this project |
-| `hvs80-pixel` | reproduction processes: dither, palette crush (Game Boy, C64, CGA, Spectrum, PICO-8, Virtual Boy), print inks, glyph art, flip-dot and e-ink displays | original to this project |
+| `hvs80-pixel` | reproduction processes: dither, palette crush (Game Boy, C64, CGA, Spectrum, PICO-8, Virtual Boy), print inks, glyph art, flip-dot and e-ink displays, starved-codec macroblocks | original to this project |
 | `libretro` | 19 CRT/LCD/retro ports | [common-shaders](https://github.com/libretro/common-shaders), per-file licences (PD/MIT/GPL) |
 | `bzzzbz` | four analog-style generators, ported | [bzzzbz](https://github.com/daviderovell0/bzzzbz), GPL-3.0 |
 | `eyesy` | six EYESY modes, reimplemented from Python | [Critter & Guitari](https://github.com/critterandguitari/EYESY_OS), BSD |
 | `partymode` | 9 geometric party pieces, clean-room | after [Mathew Preziotte](https://github.com/preziotte) (no licence upstream → no code copied) |
 | `hydra` | six Hydra generators/warps, reimplemented | after [Olivia Jack](https://github.com/hydra-synth/hydra)'s vocabulary, AGPL upstream, no code copied |
 | `livecode` | six pieces after the [livecode.nyc](https://livecode.nyc/tools) scene | 3 adapted from [The Force](https://github.com/shawnlawson/The_Force) (MIT, Shawn Lawson), 3 clean-room after la habra & bl4st |
+| `milkdrop` | four MilkDrop engine constructions: per-pixel warp field, scope ribbon, video echo, spiral tunnel — engine only, no presets | after [MilkDrop](https://github.com/milkdrop2077/MilkDrop3) (Ryan Geiss; BSD-3-Clause via the MilkDrop3/BeatDrop lineage) |
 
 Third-party packs install with `python3 tools/packget.py <zip|url|folder>` —
 validated first, then synced to the deck. Your own original packs are yours
@@ -335,6 +412,55 @@ Pull videos from YouTube (playlists become collections automatically):
 - **go live** — RTMP via the Pi's hardware H.264 encoder. Put your endpoint
   in `stream.json` (gitignored): `{"url": "rtmp://a.rtmp.youtube.com/live2",
   "key": "...", "mixer": "udp://your-laptop.local:5001?pkt_size=1316"}`
+
+## Gameplay capture
+
+The other half of this card is RetroPie, and RetroArch already knows how to
+record what it is emulating. So the handheld films its own games and hands
+them to the synth: **play a level, quit, melt it.**
+
+Turn it on once, on the Pi:
+
+```sh
+ssh pi@retropie.local 'bash /home/pi/handheld-video-synth/pi/emurec_setup.sh'
+```
+
+It checks that your RetroArch was built with the ffmpeg recorder, points
+recording at a staging folder, installs an encoder preset tuned for a Zero 2W
+running a game *and* an encoder at once, and hooks the ingest onto RetroPie's
+`runcommand-onend.sh`. Nothing else about your emulators changes, every line
+it displaces is kept commented in place, and `--undo` puts it all back.
+
+Then, in any game:
+
+| control | action |
+| --- | --- |
+| **Select + Y** | start recording · press again to stop |
+
+Quit the game and the capture becomes a 320×240 30fps mp4 in
+`packs/hvs80-synth/clips/emulator/` — the same shape as every other clip on
+the card — which the Loader lists as the **emulator** collection, with the
+game's own sound available as the audio source. A fourth cart, ***Gameplay***,
+sweeps anything outstanding and boots straight onto the session you just
+played.
+
+What it captures is the core's *raw framebuffer* — 256×240 from a NES, 240×160
+from a GBA, landing 1:1 in the clip with no resampling at all — not the
+screen. That costs the GPU nothing, keeps RetroArch's own shaders and menus
+out of the picture, and is the only thing that works on this display driver
+anyway. Recording is software H.264 on the CPU, so expect 8-bit and light
+16-bit cores to hold their framerate and anything already marginal to stop
+being playable while the recorder is on.
+
+The full design — every config key and why, what was rejected, the
+performance numbers, and an honest list of what could not be tested without
+the handheld — is in
+**[docs/EMULATOR_CAPTURE.md](docs/EMULATOR_CAPTURE.md)**.
+
+```sh
+python3 tools/emurec.py --list     # what is staged and waiting
+python3 tools/emurec.py            # sweep it by hand
+```
 
 ## Web console
 
@@ -410,17 +536,23 @@ Drop a `.frag` in a pack's `shaders/`, reference it from a playlist, done.
 main.py              engine: platforms, sources, chain renderer, loader, decks
 glshim.py            GL import switch (PyOpenGL vs pi_backend)
 pi_backend.py        dispmanx EGL + GLES2 via ctypes, evdev input, PIL text
+midi.py              USB MIDI in (raw ALSA on the Pi, pygame.midi desktop)
+jellyfin.py          Jellyfin library browse + transcode URLs (stdlib only)
 ytget.py             YouTube → 320x240 clips (+audio), playlist collections
-launch.sh, pi/       RetroPie launcher, installer, starter carts (.vsb)
-packs/               ten effect packs (see Content packs) + your clips
+tools/emurec.py      RetroArch gameplay captures → 320x240 clips
+launch.sh, pi/       RetroPie launcher, installer, starter carts (.vsb),
+                     gameplay-capture setup + RetroArch record preset
+packs/               thirteen effect packs (see Content packs) + your clips
 docs/SD_CARD_GUIDE.md   pressing a full SD card image
+docs/EMULATOR_CAPTURE.md  recording RetroPie gameplay into the clip library
 ```
 
 ## Origin projects
 
 This instrument stands on the Raspberry Pi video-synth scene's shoulders:
 [Andrei Jay](https://andreijaycreativecoding.com)'s waaave_pool / VSERPI
-family (techniques reimplemented fresh — his code carries no license),
+family (techniques reimplemented fresh — his code carries no license — and
+shipped under his lineage's own name as [`packs/vserpi`](packs/vserpi/CREDITS.md)),
 [cyberboy666 / Tim Caldwell](https://github.com/cyberboy666)'s r_e_c_u_r,
 recurBOY and conjur (GPL-3; shader convention adopted, collection shipped
 verbatim), and the [scanlines.xyz](https://scanlines.xyz) community.

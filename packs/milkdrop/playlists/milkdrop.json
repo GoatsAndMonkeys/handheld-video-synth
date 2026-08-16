@@ -1,6 +1,6 @@
 {
   "name": "milkdrop",
-  "credit": "after MilkDrop — engine, not presets",
+  "credit": "after MilkDrop",
   "steps": [
     {"shader": "mdwarp",   "x": [0.58, 0.55, 0.35, 0.55], "speed": 0.45},
     {"shader": "mdspiral", "x": [0.62, 0.60, 0.55, 0.45], "speed": 0.40},

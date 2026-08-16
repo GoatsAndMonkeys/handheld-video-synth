@@ -75,3 +75,8 @@ EOF
 fi
 
 echo "== done — restart EmulationStation (or reboot) to see the HVS-80 shelf =="
+echo
+echo "   Optional: record your emulators and melt the footage —"
+echo "     bash $APP/pi/emurec_setup.sh"
+echo "   (kept separate on purpose: it edits RetroArch's own config, and"
+echo "    installing the synth should not change how your games play.)"

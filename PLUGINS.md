@@ -170,8 +170,9 @@ a few minutes. Wrap with `fract()` instead.
 The engine keeps a ring of 16 past **output** frames, about 0.8 seconds at
 the handheld's frame rate. `u_tex2` is a tap into it whose depth follows the
 first knob of the last effect in the chain (`k = 1 + x0 * 14` frames back);
-`u_tex3` is a second tap at half that depth. See `packs/hvs80-synth/shaders/delay.frag`
-for the plain echo and `rgbdelay.frag` for the RGB time-split:
+`u_tex3` is a second tap at half that depth. See `packs/vserpi/shaders/delay.frag`
+for the plain echo and `packs/hvs80-synth/shaders/rgbdelay.frag` for the RGB
+time-split:
 
 ```glsl
 uniform sampler2D u_tex0;

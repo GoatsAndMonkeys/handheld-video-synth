@@ -23,6 +23,32 @@ import battery
 import deckvault
 
 try:
+    import midi
+except ImportError:      # deployed from a tree without it: play on regardless
+    midi = None
+
+try:
+    import jellyfin
+except ImportError:
+    jellyfin = None
+
+
+def jelly_profiles():
+    """Configured Jellyfin servers, or [] — never raises.
+
+    The handheld travels: the same server is a LAN address at home and a
+    public one from a venue, and a friend's box is a different login
+    entirely. So the config holds a list and the Loader switches between
+    them. Asked through hasattr because jellyfin.py is a separate file
+    that can be older than this one on a half-updated deck."""
+    if jellyfin is None or not hasattr(jellyfin, "profiles"):
+        return []
+    try:
+        return jellyfin.profiles()
+    except Exception:
+        return []
+
+try:
     import numpy as np  # desktop only (cv2 frames); the Pi path avoids it
 except ImportError:
     np = None
@@ -497,6 +523,14 @@ class RadioAudio:
         self.tap = b""      # raw PCM consumed this tick (streamer mirror)
         self._lp = 0.0
         self._peaks = [1e-4, 1e-4, 1e-4]  # auto-gain per band
+        # The desktop build plays sound through a separate ffplay, and a
+        # crash or a killed test script used to leave it running with no
+        # window to close — music the user cannot turn off. atexit fires on
+        # normal exit AND on an unhandled exception, which is exactly the
+        # case that stranded them. (The Pi never spawns one: its audio
+        # rides the same ffmpeg that does the analysis.)
+        import atexit
+        atexit.register(self.stop)
 
     @property
     def active(self):
@@ -947,74 +981,24 @@ def _find_ffmpeg():
     return home_ff if os.path.exists(home_ff) else None
 
 
-def _crush_label(level):
-    """Name the level by what it does, not by libjpeg's q number."""
-    if level <= 0:
-        return "off"
-    q, gens = _FFClip.CRUSH[level]
-    return "q%d" % q if gens == 1 else "q%d, saved %dx" % (q, gens)
-
-
 class _FFClip:
     """Looping realtime rawvideo pipe from ffmpeg — clip decode without
     OpenCV. -re paces decode to wall-clock so clip video stays in step with
     its audio; we read non-blocking and show the newest complete frame,
     dropping any we're too slow for."""
 
-    # Real JPEG, not an impression of one — libjpeg does the damage in its
-    # own process. Each level is (quality, generations). ffmpeg's mjpeg
-    # quality bottoms out at 31, so harder levels re-encode what is already
-    # a crushed JPEG: generation loss, the way an image looks after being
-    # saved and re-saved. Every level stays at full resolution, so what you
-    # see is blocking and ringing and not a rescale blur wearing its coat.
-    CRUSH = [None, (24, 1), (31, 1), (31, 2), (31, 3), (31, 4)]
-
-    # crushed frames are tiny, and left to probe, the decoder waits to fill
-    # its default probesize before emitting anything — which takes most of a
-    # minute and looks exactly like the source having died
-    JPEG_IN = ["-f", "mjpeg", "-framerate", "30",
-               "-probesize", "32", "-analyzeduration", "0"]
-
-    def __init__(self, path, w, h, ffmpeg, crush=0):
+    def __init__(self, path, w, h, ffmpeg):
         import subprocess
         import fcntl
         self.frame_size = w * h * 3
-        self.chain = []          # every process spawned, in spawn order
         vf = ("scale=%d:%d:force_original_aspect_ratio=increase,"
               "crop=%d:%d,vflip" % (w, h, w, h))
         quiet = [ffmpeg, "-loglevel", "quiet", "-skip_loop_filter", "all"]
-        step = self.CRUSH[crush] if 0 < crush < len(self.CRUSH) else None
-
-        feed = None
-        if step is not None:
-            q, gens = step
-            # raw mjpeg: literally one JPEG file after another. mpegts takes
-            # the mux without complaint and then decodes to nothing at all,
-            # which is a quiet way to lose the picture entirely.
-            jpeg_out = ["-c:v", "mjpeg", "-q:v", str(q),
-                        "-pix_fmt", "yuvj420p", "-f", "mjpeg", "pipe:1"]
-            first = subprocess.Popen(quiet + ["-re", "-i", path] + jpeg_out,
-                                     stdout=subprocess.PIPE,
-                                     bufsize=self.frame_size)
-            self.chain.append(first)
-            feed = first.stdout
-            for _ in range(gens - 1):       # each pass is another real save
-                nxt = subprocess.Popen(
-                    quiet + self.JPEG_IN + ["-i", "pipe:0"] + jpeg_out,
-                    stdin=feed, stdout=subprocess.PIPE,
-                    bufsize=self.frame_size)
-                feed.close()                # the child owns it now
-                self.chain.append(nxt)
-                feed = nxt.stdout
-
         self.proc = subprocess.Popen(
-            quiet + (self.JPEG_IN if feed else ["-re"])
-            + ["-i", "pipe:0" if feed else path,
-               "-f", "rawvideo", "-pix_fmt", "rgb24", "-vf", vf, "pipe:1"],
-            stdin=feed, stdout=subprocess.PIPE, bufsize=self.frame_size * 4)
-        if feed is not None:
-            feed.close()     # holding it open here would keep the pipe from
-        self.chain.append(self.proc)              # ever reaching end-of-file
+            quiet + ["-re", "-i", path,
+                     "-f", "rawvideo", "-pix_fmt", "rgb24",
+                     "-vf", vf, "pipe:1"],
+            stdout=subprocess.PIPE, bufsize=self.frame_size * 4)
         fl = fcntl.fcntl(self.proc.stdout, fcntl.F_GETFL)
         fcntl.fcntl(self.proc.stdout, fcntl.F_SETFL, fl | os.O_NONBLOCK)
         # a bytearray grows and trims in place; concatenating bytes would
@@ -1045,15 +1029,11 @@ class _FFClip:
                 and len(self._buf) < self.frame_size)
 
     def close(self):
-        # source end first, then downstream: killing the reader while a
-        # writer is still going leaves it blocked on a pipe nobody drains,
-        # and it would sit there holding a core until the app exits
-        for p in self.chain:
-            try:
-                p.kill()
-                p.wait(timeout=2)
-            except Exception:
-                pass
+        try:
+            self.proc.kill()
+            self.proc.wait(timeout=2)
+        except Exception:
+            pass
         try:
             self.proc.stdout.close()
         except Exception:
@@ -1081,8 +1061,7 @@ class Sources:
         self._ffmpeg = _find_ffmpeg()
         self._ff = None
         self._ff_path = None
-        self.crush = 0          # real-JPEG level applied to clips on the way in
-        self._ff_crush = 0
+        self.jelly_titles = {}   # jellyfin item id -> title, for the bar
         self.slots = self._scan()
         self.slot_idx = 0
         self._held = False      # freeze holds the picture, not the decoder
@@ -1115,6 +1094,16 @@ class Sources:
                     slots.append(("clip", p))
         if has_cv2:
             slots.append(("cam", None))
+        # Jellyfin titles come from the cache on disk, never the network:
+        # scanning happens at boot and on every rescan, and a server that is
+        # off or slow must not hold the instrument at a black screen. The
+        # menu's "refresh" row is what actually talks to the server.
+        if jellyfin is not None and jellyfin.available():
+            for it in jellyfin.cached_items():
+                slots.append(("jelly", it["id"]))
+                year = it.get("year")
+                self.jelly_titles[it["id"]] = (
+                    "%s (%d)" % (it["name"], year) if year else it["name"])
         return slots
 
     @staticmethod
@@ -1141,6 +1130,8 @@ class Sources:
         kind, path = self.slots[self.slot_idx]
         if kind == "clip":
             return os.path.splitext(os.path.basename(path))[0][:12]
+        if kind == "jelly":
+            return self.jelly_titles.get(path, "jellyfin")[:12]
         return kind
 
     def select(self, kind):
@@ -1162,7 +1153,9 @@ class Sources:
         if self.mode != "cam" and self._cam is not None:
             self._cam.release()
             self._cam = None
-        if self.mode != "clip" and self._ff is not None:
+        # jellyfin plays down the same ffmpeg pipe as a local clip, so both
+        # kinds keep it alive; anything else tears it down
+        if self.mode not in ("clip", "jelly") and self._ff is not None:
             self._ff.close()
             self._ff = None
             self._ff_path = None
@@ -1191,6 +1184,13 @@ class Sources:
     def advance(self):
         """Video finished: play the next one in the same collection."""
         kind, _ = self.slots[self.slot_idx]
+        if kind == "jelly":       # the library is the collection here
+            idxs = [i for i, (k, _) in enumerate(self.slots) if k == "jelly"]
+            if idxs:
+                self.slot_idx = idxs[(idxs.index(self.slot_idx) + 1)
+                                     % len(idxs)]
+            self._post_switch()
+            return
         if kind != "clip":
             return
         for idxs in self.collections().values():
@@ -1216,19 +1216,38 @@ class Sources:
         kind, path = self.slots[self.slot_idx]
         if kind == "gen":
             return True
+        if kind == "jelly":
+            # always the ffmpeg pipe, never OpenCV: the source is an HTTP
+            # transcode off the server, which is exactly what -re -i takes
+            if self._ffmpeg is None:
+                self.slot_idx = 0
+                return False
+            if self._ff is None or self._ff_path != path:
+                url = jellyfin.stream_url(path) if jellyfin else None
+                if url is None:
+                    print("jellyfin: no stream URL for", path)
+                    self.slot_idx = 0
+                    return False
+                if self._ff is not None:
+                    self._ff.close()
+                self._ff = _FFClip(url, self.w, self.h, self._ffmpeg)
+                self._ff_path = path
+            raw = self._ff.read()
+            if raw is not None and not self._held:
+                upload_raw(self.tex, self.w, self.h, raw)
+            elif self._ff.done():
+                self.advance()
+            return True
         cv2 = self._cv2()
         if kind == "clip" and cv2 is None:
             if self._ffmpeg is None:
                 self.slot_idx = 0
                 return False
-            if (self._ff is None or self._ff_path != path
-                    or self._ff_crush != self.crush):
+            if self._ff is None or self._ff_path != path:
                 if self._ff is not None:
                     self._ff.close()
-                self._ff = _FFClip(path, self.w, self.h, self._ffmpeg,
-                                   self.crush)
+                self._ff = _FFClip(path, self.w, self.h, self._ffmpeg)
                 self._ff_path = path
-                self._ff_crush = self.crush
             raw = self._ff.read()
             if raw is not None and not self._held:  # None = no new frame yet
                 upload_raw(self.tex, self.w, self.h, raw)
@@ -1309,11 +1328,15 @@ class Instrument:
         self.pack_dir = os.path.join(ROOT, args.pack)
         self.playlist = self.load_playlist(args.playlist)
         self.programs = {}
+        self._failed_shaders = set()
+        # the same cross-pack search the engine uses everywhere else. A set
+        # is free to name an effect that lives in another pack — hvs80 does,
+        # for risograph — and loading straight from this pack's folder made
+        # that a FileNotFoundError at boot rather than a shader that loads
+        # from where it actually is. A shader that is genuinely missing is
+        # reported and skipped: one bad name must not cost the whole set.
         for step in self.playlist["steps"]:
-            name = step["shader"]
-            if name not in self.programs:
-                self.programs[name] = Program(
-                    os.path.join(self.pack_dir, "shaders", name + ".frag"))
+            self._ensure_program(step["shader"])
         self.source_prog = Program(_infra_shader(self.pack_dir,
                                                  "_source_plasma.frag"))
         self.overlay_prog = Program(_infra_shader(self.pack_dir,
@@ -1333,6 +1356,9 @@ class Instrument:
         self.deck_mode = False   # False = build (L/R browses effects),
                                  # True = play (L/R walks saved scenes)
         self.kb = None           # on-screen keyboard state (menu name editor)
+        self.morph_s = 0.0       # patch-to-patch glide time, 0 = hard cut
+        self._morph = None       # live glide: {"from", "t0", "dur"}
+        self._rendered = []      # last frame's effective values, for _morph
         self._load_decks()
 
         if getattr(args, "srcres", None):
@@ -1402,8 +1428,12 @@ class Instrument:
         self._fps_key = None
 
         self.meta = {}  # shader sidecar metadata, loaded lazily per shader
-        self._failed_shaders = set()
-        self._credit_cache = {}
+        self._credit_cache = {}    # _failed_shaders is set up before the
+                                   # boot-time shader load, further up
+
+        # a knob box on the USB port, if one is plugged in. Constructing it
+        # is always safe — no controller means poll() returns nothing.
+        self.midi = midi.MidiIn() if midi is not None else None
 
     def load_playlist(self, name):
         if name == self.ALL_SET:     # browse every shader in the pack
@@ -1468,20 +1498,22 @@ class Instrument:
 
     ALL_SET = "* everything"     # synthetic set: every shader in the pack
 
-    def _set_credit(self, pack, name):
-        """The set's credit line, cached (menu rebuilds every frame)."""
-        key = (pack, name)
-        if key not in self._credit_cache:
-            credit = None
-            if name != self.ALL_SET:
-                try:
-                    with open(os.path.join(ROOT, pack, "playlists",
-                                           name + ".json")) as f:
-                        credit = json.load(f).get("credit")
-                except Exception:
-                    pass
-            self._credit_cache[key] = credit
-        return self._credit_cache[key]
+    def _pack_info(self, pack):
+        """(artist, effect count) for a pack, cached — the menu rebuilds
+        every frame, and this reads a file per row.
+
+        The artist comes from pack.json, which is the pack's own statement
+        about who made it; a playlist's `credit` describes one setlist, not
+        the body of work the row now stands for."""
+        if pack not in self._credit_cache:
+            artist = None
+            try:
+                with open(os.path.join(ROOT, pack, "pack.json")) as f:
+                    artist = json.load(f).get("artist")
+            except Exception:
+                pass
+            self._credit_cache[pack] = (artist, self._pack_fx_count(pack))
+        return self._credit_cache[pack]
 
     def _pack_fx_count(self, pack):
         """How many effects a pack holds, cached. Underscore files are
@@ -1496,26 +1528,26 @@ class Instrument:
             self._fxcount_cache[pack] = n
         return self._fxcount_cache[pack]
 
-    def list_sets(self):
+    def list_packs(self):
+        """One entry per pack — the FX deck browses packs, not setlists.
+
+        A pack is the unit an artist ships and the unit you think in while
+        performing; the individual setlists inside one were an extra level
+        that only ever cost horizontal space in a 58-column bar. Curated
+        per-step values live in patch decks now, which is the instrument's
+        own performance system."""
         import glob
-        out = []
-        # the instrument's own packs head the menu; guests follow, A-Z
-        def order(p):
-            b = os.path.basename(p)
-            house = ("hvs80-synth", "hvs80-pixel", "hvs80-glitch")
-            return (house.index(b), "") if b in house else (len(house), b)
-        for pdir in sorted(glob.glob(os.path.join(ROOT, "packs", "*")),
-                           key=order):
-            rel = os.path.relpath(pdir, ROOT)
-            names = [os.path.splitext(os.path.basename(pj))[0]
-                     for pj in sorted(glob.glob(os.path.join(
-                         pdir, "playlists", "*.json")))]
-            names = [n for n in names if n not in ("deck", "decks")]
-            # a set named after its pack IS that pack's "everything"
-            if os.path.basename(pdir) not in names:
-                out.append((rel, self.ALL_SET))
-            out.extend((rel, n) for n in names)
-        return out
+        packs = [os.path.relpath(p, ROOT)
+                 for p in sorted(glob.glob(os.path.join(ROOT, "packs", "*")))
+                 if os.path.isdir(p)]
+        # the user's own packs head the menu, guests follow A-Z
+        house = ("hvs80-synth", "hvs80-pixel", "hvs80-glitch")
+
+        def order(pack):
+            b = os.path.basename(pack)
+            return (0, house.index(b), "") if b in house else (1, 0, b)
+
+        return sorted(packs, key=order)
 
     def load_set(self, pack_rel, name):
         """Live-switch to another setlist, possibly from another pack."""
@@ -1607,6 +1639,10 @@ class Instrument:
                 if d.get("decks"):
                     self.decks = d["decks"]
                 self.deck_sel = min(d.get("active", 0), len(self.decks) - 1)
+                try:
+                    self.morph_s = max(0.0, float(d.get("morph", 0.0)))
+                except (TypeError, ValueError):
+                    self.morph_s = 0.0
                 # a copy of what was on disk, taken before the engine has
                 # had any chance to write over it
                 deckvault.snapshot(self.decks_path, text, force=True)
@@ -1650,8 +1686,8 @@ class Instrument:
         if not self._decks_ok:
             print("not saving decks: the file on disk did not parse")
             return
-        text = json.dumps({"active": self.deck_sel, "decks": self.decks},
-                          indent=2)
+        text = json.dumps({"active": self.deck_sel, "morph": self.morph_s,
+                           "decks": self.decks}, indent=2)
         tmp = self.decks_path + ".tmp"
         try:
             with open(tmp, "w") as f:
@@ -1670,11 +1706,75 @@ class Instrument:
         deckvault.snapshot(self.decks_path, text)
         deckvault.cloud_push(os.path.basename(self.pack_dir), text)
 
+    # patch-to-patch glide times. 0 is a hard cut — the instrument's
+    # original behaviour, and still the right answer for a set that
+    # changes on the beat.
+    MORPH_TIMES = [0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0]
+
+    def _begin_morph(self):
+        """Glide from what is on screen right now into the new patch.
+
+        The starting point is the last frame's *effective* values, not the
+        outgoing patch's saved ones — so walking three patches in a second
+        glides continuously instead of snapping back to each one's stored
+        numbers on the way past."""
+        if self.morph_s <= 0 or not self._rendered:
+            self._morph = None
+            return
+        self._morph = {"from": self._rendered,
+                       "t0": time.time(), "dur": self.morph_s}
+
+    def _morph_chain(self, chain):
+        """The chain as it should render this frame, mid-glide.
+
+        Slots line up from the live effect backwards (the newest layer is
+        the one you were just playing with), and only a slot still running
+        the same shader can glide: params mean different things to
+        different effects, so a changed shader takes its own values at
+        once. Returns the chain untouched when nothing is gliding, which
+        is every frame but a handful — this runs inside the render loop."""
+        m = self._morph
+        if m is None:
+            self._rendered = [(s["shader"], list(s["x"]), s["speed"])
+                              for s in chain]
+            return chain
+        u = (time.time() - m["t0"]) / m["dur"]
+        if u >= 1.0:
+            self._morph = None
+            self._rendered = [(s["shader"], list(s["x"]), s["speed"])
+                              for s in chain]
+            return chain
+        u = u * u * (3.0 - 2.0 * u)      # ease in and out of the change
+        out, rendered = [], []
+        prev = m["from"]
+        for i, st in enumerate(chain):
+            # align on the live effect (both lists end there), so a patch
+            # with fewer layers still glides the effect you are playing
+            j = len(prev) - (len(chain) - i)
+            old = prev[j] if 0 <= j < len(prev) else None
+            if old is None or old[0] != st["shader"]:
+                out.append(st)
+                rendered.append((st["shader"], list(st["x"]), st["speed"]))
+                continue
+            x = [old[1][k] + (st["x"][k] - old[1][k]) * u
+                 for k in range(len(st["x"]))]
+            spd = old[2] + (st["speed"] - old[2]) * u
+            # a shallow copy per gliding slot: the patch on disk keeps its
+            # own numbers, and nudging a knob mid-glide edits the target
+            eff = dict(st)
+            eff["x"] = x
+            eff["speed"] = spd
+            out.append(eff)
+            rendered.append((st["shader"], x, spd))
+        self._rendered = rendered
+        return out
+
     def step(self, delta):
         self.layer_focus = 0
         if self.deck and self.deck_mode:
             self.deck_idx = (self.deck_idx + delta) % len(self.deck)
             self._ensure_program(self.deck[self.deck_idx]["shader"])
+            self._begin_morph()
         else:
             self.step_idx = (self.step_idx + delta) % len(self.playlist["steps"])
         if not self._row_ok(self.param_row):
@@ -1693,6 +1793,12 @@ class Instrument:
                     "src", "randomize", "freeze", "lfo", "mode_toggle",
                     "lfoband_up", "lfoband_down")
 
+    # the Jellyfin library sits beside the clip collections as a folder of
+    # its own; the name is the menu_col key, so it must not collide with a
+    # real clips subfolder (a capitalised name never does — those are
+    # playlist slugs from ytget)
+    JELLY_COL = "Jellyfin"
+
     MENU_CATS = [("video", "Video source"), ("audio", "Audio source"),
                  ("output", "Output"), ("sets", "FX deck"),
                  ("deck", "Patch decks")]
@@ -1705,7 +1811,7 @@ class Instrument:
         if key == "output":
             return ["screen", "mixer", "recording", "LIVE"][self.output_idx]
         if key == "sets":
-            return self.playlist_name
+            return os.path.basename(self.pack_rel)
         return "%s (%d)%s" % (self.decks[self.deck_sel]["name"],
                               len(self.deck),
                               "  PLAYING" if self.deck_mode else "")
@@ -1719,6 +1825,27 @@ class Instrument:
         if key == "video":
             cols = self.sources.collections()
             cur = self.sources.slot_idx
+            jl = [i for i, (k, _) in enumerate(self.sources.slots)
+                  if k == "jelly"]
+            if self.menu_level == 2 and self.menu_col == self.JELLY_COL:
+                profs = jelly_profiles()
+                if len(profs) > 1:
+                    # the handheld travels: same library, different address
+                    # at home and away, so the server is a live choice
+                    rows.append(("hdr", None, "  servers", False))
+                    for p in profs:
+                        rows.append(("jserv", p["index"],
+                                     "%-10s %s" % (p["name"], p["url"][:28]),
+                                     p["active"]))
+                    rows.append(("hdr", None, "  library", False))
+                for i in jl:
+                    rows.append(("src", i,
+                                 self.sources.jelly_titles.get(
+                                     self.sources.slots[i][1], "?")[:40],
+                                 i == cur))
+                rows.append(("jrefresh", None,
+                             "* refresh library from the server", False))
+                return rows
             if self.menu_level == 2 and self.menu_col in cols:
                 for i in cols[self.menu_col]:
                     label = os.path.splitext(os.path.basename(
@@ -1733,9 +1860,13 @@ class Instrument:
             for name, idxs in cols.items():
                 rows.append(("vcol", name, "%s  (%d videos)" %
                              (name, len(idxs)), cur in idxs))
-            rows.append(("vcrush", None, "jpeg crush: %s"
-                         % _crush_label(self.sources.crush),
-                         self.sources.crush > 0))
+            if jellyfin is not None and jellyfin.available():
+                # name the server on the folder row: which one you are
+                # pointed at is the thing you need to know before you go in
+                act = [p for p in jelly_profiles() if p["active"]]
+                where = ("  [%s]" % act[0]["name"]) if act else ""
+                rows.append(("jcol", self.JELLY_COL, "%s%s  (%d titles)"
+                             % (self.JELLY_COL, where, len(jl)), cur in jl))
         elif key == "audio":
             labels = {"off": "no audio", "clip": "video's own sound"}
             groups = radio_groups()
@@ -1765,14 +1896,12 @@ class Instrument:
                          % ("ON (demo mode)" if self.output_ui else "off"),
                          self.output_ui))
         elif key == "sets":
-            for i, (pack, name) in enumerate(self.list_sets()):
-                active = (pack == self.pack_rel and name == self.playlist_name
-                          and not self.deck)
-                credit = self._set_credit(pack, name)
-                rows.append(("set", i, "%s%s  (%s %d)" %
-                             (name, "  — " + credit if credit else "",
-                              os.path.basename(pack),
-                              self._pack_fx_count(pack)), active))
+            for i, pack in enumerate(self.list_packs()):
+                artist, count = self._pack_info(pack)
+                rows.append(("set", i, "%s %d%s" %
+                             (os.path.basename(pack), count,
+                              "  — " + artist if artist else ""),
+                             pack == self.pack_rel and not self.deck))
         else:  # deck manager
             if self.menu_level == 2:      # inside one deck (menu_col = index)
                 di = self.menu_col
@@ -1800,6 +1929,10 @@ class Instrument:
                 mode = ("mode: PLAY patch deck  (L/R = patches)" if self.deck_mode
                         else "mode: BUILD  (L/R = effects)")
                 rows.append(("deckmode", None, mode, self.deck_mode))
+            rows.append(("morph", None, "morph: %s"
+                         % ("hard cut" if self.morph_s <= 0
+                            else "%.2gs glide" % self.morph_s),
+                         self.morph_s > 0))
             for di, dk in enumerate(self.decks):
                 rows.append(("deckopen", di, "%s  (%d patches)" %
                              (dk["name"], len(dk["scenes"])),
@@ -1945,12 +2078,37 @@ class Instrument:
                 sub = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(sub) if r[3]), 0)
-            elif kind in ("vcol", "acol"):
+            elif kind in ("vcol", "acol", "jcol"):
                 self.menu_level = 2
                 self.menu_col = i          # i is the collection name here
                 sub = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(sub) if r[3]), 0)
+                if sub and sub[self.menu_idx][0] == "hdr":
+                    self._menu_move(+1)    # never park on a heading
+            elif kind == "jserv":
+                ok = False
+                try:
+                    ok = jellyfin.set_active(i)
+                except Exception as exc:
+                    print("jellyfin: could not switch server:", exc)
+                # the listing is cached per server, so the new one's titles
+                # are on screen immediately and offline
+                self.sources.rescan()
+                name = next((p["name"] for p in jelly_profiles()
+                             if p["active"]), "?")
+                self._load_err = ("jellyfin: %s%s" %
+                                  (name, "" if ok else " (not saved)"),
+                                  time.time() + 4.0)
+                self._toast_until = time.time() + 4.0
+            elif kind == "jrefresh":
+                # the one place that talks to the server. It blocks — the
+                # picture holds for a moment on a slow library — but it is
+                # a deliberate menu action, never the render loop's problem
+                n = len(jellyfin.fetch_items()) if jellyfin else 0
+                self.sources.rescan()
+                self._load_err = ("jellyfin: %d titles" % n, time.time() + 4.0)
+                self._toast_until = time.time() + 4.0
             elif kind == "src":
                 self.sources.slot_idx = i
                 self.sources._post_switch()
@@ -1961,14 +2119,13 @@ class Instrument:
                 self._set_output(i)
             elif kind == "outui":
                 self.output_ui = not self.output_ui
-            elif kind == "vcrush":
-                self.sources.crush = ((self.sources.crush + 1)
-                                      % len(_FFClip.CRUSH))
             elif kind == "set":
-                sets = self.list_sets()
-                if i < len(sets):
-                    self.load_set(sets[i][0], sets[i][1])
-                    self.menu_open = False   # picked a deck: back to video
+                packs = self.list_packs()
+                if i < len(packs):
+                    # every effect in the pack, which is exactly what the
+                    # count on the row promised
+                    self.load_set(packs[i], self.ALL_SET)
+                    self.menu_open = False   # picked a pack: back to video
             elif kind == "deckmode":
                 self.deck_mode = not self.deck_mode
             elif kind == "deckopen":
@@ -1981,12 +2138,19 @@ class Instrument:
                                    "scenes": []})
                 self._save_deck()
                 self._kb_open(("deck", di), self.decks[di]["name"])
+            elif kind == "morph":
+                cur = self.MORPH_TIMES.index(self.morph_s) \
+                    if self.morph_s in self.MORPH_TIMES else 0
+                self.morph_s = self.MORPH_TIMES[(cur + 1)
+                                                % len(self.MORPH_TIMES)]
+                self._save_deck()
             elif kind == "deck":
                 di, si = i
                 self.deck_sel = di
                 self.deck_idx = si
                 self.deck_mode = True    # picking a scene = play it
                 self._ensure_program(self.deck[si]["shader"])
+                self._begin_morph()
                 self._save_deck()        # persists which deck is active
             elif kind == "deckadd":
                 import copy
@@ -2014,7 +2178,10 @@ class Instrument:
                 rows = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(rows)
-                     if r[0] == back_kind and r[1] == self.menu_col), 0)
+                     # jellyfin's folder row is its own kind, so land back
+                     # on it rather than on the first row of the menu
+                     if r[0] in (back_kind, "jcol") and r[1] == self.menu_col),
+                    0)
             elif self.menu_level == 1:
                 self.menu_level = 0
                 self.menu_idx = self.menu_cat
@@ -2119,6 +2286,7 @@ class Instrument:
                 if self.deck_mode:  # entering play: land on current scene
                     self._ensure_program(
                         self.deck[self.deck_idx % len(self.deck)]["shader"])
+                self._begin_morph()
         elif ev == "freeze":
             # the picture holds, the music plays on: the clip keeps decoding
             # underneath, so releasing the freeze lands back in time with it
@@ -2140,6 +2308,76 @@ class Instrument:
                 lb[self.param_row] = (lb[self.param_row] + delta) % 4
                 s["lfo"][self.param_row] = True  # picking a band arms it
         return True
+
+    def _midi_set(self, target, v):
+        """Absolute param set from a controller, on the focused effect.
+
+        A knob sends where it *is*, not which way it moved, so this assigns
+        rather than nudging — and it lands on the same step the d-pad edits,
+        so the bar always shows what the knob is doing."""
+        s = self.edit_step()
+        if target == "speed":
+            s["speed"] = v
+        elif len(target) == 2 and target[0] == "x" and target[1].isdigit():
+            i = int(target[1])
+            if i < len(s["x"]):
+                s["x"][i] = v
+
+    def _midi_patch(self, program):
+        """Program change = jump to that patch in the active deck.
+
+        Numbered from the patch list you can see, so program 0 is patch 1.
+        With a morph time set this glides, which is the whole reason to
+        drive a set from a sequencer."""
+        if not self.deck:
+            return
+        self.deck_mode = True
+        self.deck_idx = program % len(self.deck)
+        self._ensure_program(self.deck[self.deck_idx]["shader"])
+        self._begin_morph()
+
+    def midi_events(self):
+        """Controller traffic, in the instrument's own vocabulary.
+
+        Knobs (CC, pitch bend) are applied here — they set values rather
+        than pressing buttons. Anything mapped to a button name is returned
+        for handle() to act on, so a pad behaves exactly like the GPi's own
+        buttons, menus included."""
+        if self.midi is None:
+            return []
+        out = []
+        for msg in self.midi.poll():
+            kind = msg[0]
+            if kind == "cc":
+                tgt = self.midi.cc_target(msg[2])
+                if tgt is None:
+                    continue
+                if tgt in self.MIDI_PARAMS:
+                    self._midi_set(tgt, msg[3] / 127.0)
+                elif msg[3] >= 64:
+                    # a CC mapped to a button name: pads that send 127/0
+                    # instead of notes are common, and half-travel is the
+                    # only sane threshold for a knob used as a switch
+                    out.append(tgt)
+            elif kind == "bend":
+                # the wheel always rides whichever knob is selected — the
+                # one performance control that needs no mapping at all
+                self._midi_set(self.PARAM_ROWS[self.param_row],
+                               msg[2] / 16383.0)
+            elif kind == "note_on":
+                ev = self.midi.note_target(msg[2])
+                if ev:
+                    out.append(ev)
+            elif kind == "note_off":
+                # punch is the one event with a release; everything else
+                # acts on the press and has nothing to undo
+                if self.midi.note_target(msg[2]) == "punch_on":
+                    out.append("punch_off")
+            elif kind == "pc":
+                self._midi_patch(msg[2])
+        return out
+
+    MIDI_PARAMS = ("x0", "x1", "x2", "x3", "speed")
 
     def current_clip_path(self):
         kind, path = self.sources.slots[self.sources.slot_idx]
@@ -2402,6 +2640,12 @@ class Instrument:
             st = chain[li]
             lines.extend(self._patch_rows(st, st is focused))
         flags = ("  FRZ" if self.frozen else "") + ("  PUNCH" if self.punch else "")
+        # the values on these rows are the patch you are gliding *to*, so
+        # say when the picture has not arrived there yet. It flips twice a
+        # glide, which is two text-texture rebuilds — a sliding readout
+        # would be one every frame, and unreadable at 20fps besides.
+        if self._morph is not None:
+            flags += "  MORPH"
         flags += self.batt.label()
         if self.streamer is not None and not self.streamer.dead:
             flags += {1: "  MIX", 2: "  REC", 3: "  LIVE"}.get(self.output_idx, "")
@@ -2646,7 +2890,12 @@ class Instrument:
         else:
             chain = self.layers + [step]
         tex_in = src
+        # the focused slot is found before the glide copies the chain —
+        # afterwards the entries are copies and identity no longer matches
         target = self.edit_step()
+        focus_i = next((i for i, s in enumerate(chain) if s is target),
+                       len(chain) - 1)
+        chain = self._morph_chain(chain)
         # delay tap depth follows the top effect's first param
         k = 1 + int(chain[-1]["x"][0] * (self.DELAY_N - 2) + 0.5)
         tap = self.delay_ring[(self.delay_head - k) % self.DELAY_N]
@@ -2658,9 +2907,14 @@ class Instrument:
                 self._ensure_program(ls["shader"])
                 prog = self.programs.get(ls["shader"])
             if prog is None:            # shader truly broken: last resort
-                prog = list(self.programs.values())[0]
+                # the plasma backstop matters when the whole set failed to
+                # load — picking "any program" out of an empty table is an
+                # IndexError every frame, i.e. a dead instrument instead of
+                # a set that plays wrong
+                prog = (list(self.programs.values())[0] if self.programs
+                        else self.source_prog)
             prog.use()
-            self.set_common(prog, ls, top=(ls is target))
+            self.set_common(prog, ls, top=(li == focus_i))
             prog.set_tex("u_tex0", 0, tex_in)
             prog.set_tex("u_tex1", 1, self.prev_tex)
             prog.set_tex("u_atlas", 2, self.atlas)
@@ -2723,11 +2977,25 @@ class Instrument:
         print("saved", path)
 
     def run(self, frames=None, shot_path=None):
+        try:
+            self._run(frames, shot_path)
+        finally:
+            # every child this instrument started dies with it, however it
+            # ended — an exception on the way out must not leave a recorder
+            # holding the encoder or a player still making noise
+            if self.streamer is not None:
+                self.streamer.close()
+            self.radio.stop()
+            if self.midi is not None:
+                self.midi.close()
+            self.plat.quit()
+
+    def _run(self, frames=None, shot_path=None):
         count = 0
         alive = True
         while alive:
             dt = self.plat.tick(30)
-            for ev in self.plat.poll():
+            for ev in self.plat.poll() + self.midi_events():
                 if not self.handle(ev):
                     alive = False
             self.render(min(dt, 0.1))
@@ -2740,10 +3008,7 @@ class Instrument:
                     if shot_path:
                         self.screenshot(shot_path)
                     break
-        if self.streamer is not None:
-            self.streamer.close()
-        self.radio.stop()
-        self.plat.quit()
+        # teardown lives in run()'s finally, so it happens however we leave
 
 
 def parse_size(s):

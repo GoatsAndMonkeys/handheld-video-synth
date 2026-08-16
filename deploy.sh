@@ -21,7 +21,18 @@ fi
 echo "-> $HOST: engine"
 rsync -az -v \
     main.py battery.py deckvault.py glshim.py pi_backend.py launch.sh \
+    midi.py jellyfin.py \
     "pi@$HOST:$DEST/"
+
+# The gameplay-capture helpers live in tools/ and pi/, so they need their own
+# hop — rsync would otherwise flatten them into the app root. Editing
+# pi/runcommand-onend.sh or pi/hvs_record.cfg does NOT re-install them; the
+# hook and the retroarch.cfg block are placed by pi/emurec_setup.sh, and the
+# hook is a copy. Re-run that on the device after changing either.
+echo "-> $HOST: capture helpers"
+rsync -az tools/emurec.py "pi@$HOST:$DEST/tools/"
+rsync -az pi/emurec_setup.sh pi/runcommand-onend.sh pi/hvs_record.cfg \
+    "pi@$HOST:$DEST/pi/"
 
 if [ "${1:-}" = "--packs" ]; then
     echo "-> $HOST: packs (excluding clips and setlists)"

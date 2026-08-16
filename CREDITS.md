@@ -14,6 +14,7 @@ work the project uses, how it is used, and why the licensing is compatible.
 | libretro shader ports (`packs/libretro/shaders/*.frag`) | many (per-file authors preserved: Lottes, Themaister, hunterk, Hyllian, gizmo98, leilei, guest(r), haasn, Greg Hogan, aliaspider, Gigaherz, cgwg, DesLauriers) | mixed **per file** — public domain / MIT / GPL-2.0-or-later / GPL-3.0; every one read from its own header, since [common-shaders](https://github.com/libretro/common-shaders) has **no repo-wide LICENSE** ([`packs/libretro/CREDITS.md`](packs/libretro/CREDITS.md)) | 19 effects ported to our uniform convention and cut to fit the Pi's GPU; files with an unversioned "GPL", a non-commercial clause, or no licence header were **skipped** — those are listed too | each is individually GPL-3-compatible ✔ |
 | EYESY modes (`packs/eyesy/shaders/*.frag`) | Owen Osborn / Critter & Guitari, Inc. ([EYESY_OS](https://github.com/critterandguitari/EYESY_OS), [modes](https://github.com/critterandguitari/EYESY_Modes_OSv3)) | **BSD-3-Clause** (OS) / BSD-2-Clause (modes) ([`packs/eyesy/LICENSE`](packs/eyesy/LICENSE)) | six modes **reimplemented** as fragment shaders — the originals are Python/pygame primitive drawing, so no code could be copied; notice, conditions and disclaimer carried in every file header | BSD is permissive and GPL-3-compatible ✔ |
 | The Force shader experiments (`packs/livecode/shaders/{chromeegg,blobfield,darksky}.frag`) | [Shawn Lawson](https://github.com/shawnlawson/The_Force) | **MIT** (Copyright (c) 2015 Shawn Lawson; text in [`packs/livecode/LICENSE`](packs/livecode/LICENSE)) | three `shaderExperiments/` pieces **adapted** to the house trigless/mediump idiom — constructions kept, math rebuilt; per-file adapted-vs-original statements in headers, details in [`packs/livecode/CREDITS.md`](packs/livecode/CREDITS.md) | MIT is GPL-3-compatible ✔ |
+| MilkDrop engine constructions (`packs/milkdrop/shaders/*.frag`) | Ryan Geiss (MilkDrop, Nullsoft) and Maxim Volskiy & contributors (the MilkDrop3 / BeatDrop lineage) | **BSD-3-Clause** — [MilkDrop3](https://github.com/milkdrop2077/MilkDrop3)'s `code/LICENSE.txt`; that repo has no root LICENSE, so the notice is read from there and carried in [`packs/milkdrop/LICENSE`](packs/milkdrop/LICENSE) | four effects **reimplemented** as original GLSL ES after the engine's own vocabulary — per-pixel warp field, scope ribbon, video echo stage, spiral tunnel; notice travels in every file header, details in [`packs/milkdrop/CREDITS.md`](packs/milkdrop/CREDITS.md). **No preset content**: the community `.milk` presets are thousands of separate authors' work and are not covered by that grant, so nothing here is derived from any preset | BSD is permissive and GPL-3-compatible ✔ |
 
 **Deliberately not used:** `creation.glsl` from that same repository is
 [Silexars' "Creation"](https://www.shadertoy.com/view/XsXXDn) by Danilo
@@ -28,7 +29,12 @@ We could not determine a license for
 so none of his code appears in this repository. The following shaders are
 **original implementations, written from scratch for this project**, of
 techniques his published work demonstrates — algorithms and ideas are not
-subject to copyright:
+subject to copyright. They ship as their own pack,
+**[`packs/vserpi/`](packs/vserpi/CREDITS.md)** (named for the VSERPI
+environment his instruments run in), so the lineage is credited under his
+name in the menu rather than folded into the house pack —
+[`packs/vserpi/CREDITS.md`](packs/vserpi/CREDITS.md) carries the per-shader
+detail:
 
 | our shader | technique studied | his project |
 | --- | --- | --- |
@@ -84,7 +90,12 @@ The same clean-room rule produced three more packs:
 `matrix` (retired) and the engine itself are original to this project, by
 GoatsAndMonkeys. `ruttetra` is a from-scratch homage to the Rutt/Etra video
 synthesizer's deflection-modulation technique (1972 analog hardware, no code
-lineage).
+lineage). These live in the house packs — `packs/hvs80-synth`,
+`packs/hvs80-pixel`, `packs/hvs80-glitch` — which contain **no** third-party
+code at all; see [`packs/hvs80-synth/CREDITS.md`](packs/hvs80-synth/CREDITS.md).
+`feedback` calls itself "waaave-style" in its header because that is the
+idiom it sits in, but it is an original of this project rather than a study
+of any particular instrument, so it stays in the house pack.
 
 ## Runtime dependencies (not distributed in this repo)
 
@@ -99,6 +110,7 @@ lineage).
 | yt-dlp | Unlicense | ✔ |
 | ffmpeg (John Van Sickle static builds) | GPL-3.0 build | ✔ — and invoked as a separate process, never linked |
 | RetroPie / EmulationStation | GPL-2.0/3.0 components | ✔ — integrated via config files only |
+| RetroArch (its built-in ffmpeg record driver, used for [gameplay capture](docs/EMULATOR_CAPTURE.md)) | GPL-3.0 | ✔ — driven entirely through `retroarch.cfg` keys, a record-preset file and RetroPie's `runcommand-onend.sh` hook. No RetroArch code is copied, linked or redistributed; `pi/hvs_record.cfg` is a settings file, and the key semantics it relies on (`video_record_quality = 0` gating `video_record_config`, the `video_`/`audio_` AVOption prefix strip, `frame_drop_ratio`, `video_gpu_record`) were read out of `record/drivers/record_ffmpeg.c` as an interface, not as source to reuse |
 
 All dependencies are installed by the user (pip/installer), not
 redistributed here, which keeps obligations minimal either way.
@@ -111,6 +123,15 @@ redistributed here, which keeps obligations minimal either way.
   was the map that made this project possible.
 - NTS Radio streams are accessed as a listener via their public endpoints;
   nothing is redistributed.
+- The gameplay-capture encoder settings in `pi/hvs_record.cfg` were shaped by
+  two published write-ups of RetroArch recording on Raspberry Pi hardware —
+  [digtvbg's Pi 3 B+ ffmpeg recording notes](https://digtvbg.com/blog/record-gameplay-in-retroarch-with-ffmpeg-on-raspberry-pi-3-mode-b/)
+  (the `ultrafast` / `animation` / `yuv420p` combination, and which cores
+  stayed playable) and
+  [artificialworlds' RetroPie recording post](https://artificialworlds.net/blog/2018/01/07/recording-gameplay-videos-on-retropie/).
+  Configuration values are facts about an encoder, not copyrightable
+  expression, and no text or code was taken from either — but neither was
+  worked out here from scratch, so both are named.
 
 ## Media
 

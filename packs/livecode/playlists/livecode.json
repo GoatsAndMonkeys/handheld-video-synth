@@ -1,6 +1,6 @@
 {
   "name": "livecode",
-  "credit": "after livecode.nyc: Shawn Lawson, Sarah Groff Hennigh-Palermo, bl4st",
+  "credit": "after livecode.nyc",
   "steps": [
     {"shader": "flatland",  "x": [0.35, 0.45, 0.30, 0.00], "speed": 0.5},
     {"shader": "bigflash",  "x": [0.50, 0.45, 0.25, 0.00], "speed": 0.5},

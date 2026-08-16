@@ -1,6 +1,6 @@
 {
   "name": "hvs80-synth",
   "artist": "GoatsAndMonkeys",
-  "description": "the video synthesizer core: feedback fields, oscillators, scan processing, optical and time manipulation",
-  "version": 2
+  "description": "the house instrument: video feedback, colour grading, lenses, tape and camera character, and time manipulation",
+  "version": 3
 }

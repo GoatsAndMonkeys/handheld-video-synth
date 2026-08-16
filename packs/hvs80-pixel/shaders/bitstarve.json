@@ -1,0 +1,9 @@
+{
+  "desc": "starved video stream: stale macroblocks, flat-block quantize, chroma bleed",
+  "params": [
+    {"name": "bitrate", "help": "the whole dial from starved to well-fed: low, detail posterises toward flat held blocks and edges buzz; high, near-clean with light blocking — bass buys a burst of updates"},
+    {"name": "blocks", "help": "macroblock size — 8 px broadcast grid at rest, up to chunky 32 px slideshow"},
+    {"name": "chroma", "help": "colour stored coarser than detail; up high it arrives late and bleeds across block borders"},
+    {"name": "smear", "help": "stale blocks drag on wrong motion vectors; the rolling keyframe sweep repairs the damage"}
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "reactive",
-  "credit": "audio-reactive set — every effect moves with the sound",
+  "credit": "audio-reactive",
   "steps": [
     {"shader": "spectrum",   "x": [0.55, 0.45, 0.75, 0.5], "speed": 0.5},
     {"shader": "eqbars",     "x": [0.60, 0.70, 0.70, 0.5], "speed": 0.5},
