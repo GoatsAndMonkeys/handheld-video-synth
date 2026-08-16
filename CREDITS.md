@@ -97,6 +97,16 @@ code at all; see [`packs/hvs80-synth/CREDITS.md`](packs/hvs80-synth/CREDITS.md).
 idiom it sits in, but it is an original of this project rather than a study
 of any particular instrument, so it stays in the house pack.
 
+The on-screen menu face in [`osdfont.py`](osdfont.py) is likewise original:
+a 5x8 bitmap font drawn glyph by glyph for this project, GPL-3.0 with
+everything else. No font file is vendored, copied, or traced — worth
+stating plainly, because a font is exactly the sort of asset a reader
+would reasonably assume had been borrowed from somewhere. The menus
+previously set DejaVu Sans Mono, which is on the device already as part of
+Raspberry Pi OS and was only ever read from the system path, never
+redistributed here; `glyph_atlas` still loads it for the `ascii` effect on
+the same terms.
+
 ## Runtime dependencies (not distributed in this repo)
 
 | dependency | license | GPL-3 compatible? |

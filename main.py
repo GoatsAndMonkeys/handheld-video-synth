@@ -21,6 +21,7 @@ import time
 
 import battery
 import deckvault
+import osdfont
 
 try:
     import midi
@@ -131,8 +132,8 @@ class DesktopPlatform:
         self._v_used = False
         self._clock = pygame.time.Clock()
         pygame.font.init()
-        self._font14 = pygame.font.SysFont("Menlo", 14)
-        self._font11 = pygame.font.SysFont("Menlo", 11)
+        # menus are set in osdfont now. glyph_atlas still asks for a system
+        # face, but it builds its own — nothing is cached here any more.
 
     def tick(self, fps):
         return self._clock.tick(fps) / 1000.0
@@ -221,33 +222,74 @@ class DesktopPlatform:
                     out.append("right")
         return out
 
+    # the same set-top palette pi_backend uses, so what you design on a
+    # laptop is what appears on the deck. Two different looks meant the
+    # desktop build could not be trusted to judge the menus at all.
+    BG = (26, 112, 196)
+    FG = (245, 245, 250)
+    ACCENT = (255, 222, 60)
+    HOT = (255, 78, 58)
+    RAIL = (14, 56, 130)
+    RAIL_THUMB = (130, 190, 240)
+    RAIL_W = 5
+    MIN_COLS = 52
+
+    def _osd_scale(self, w):
+        return max(1, int(w) // (osdfont.ADV * self.MIN_COLS))
+
+    def _osd_text(self, surf, x, y, s, scale, colour):
+        for rx, ry, rw, rh in osdfont.runs(s, int(x), int(y), scale):
+            surf.fill(colour, (rx, ry, rw, rh))
+
     def text_image(self, lines, w, h, body_px=None, header=True,
                    row_step=15, scroll=None):
-        """Returns bottom-up RGB bytes. Line 0 highlighted, rest dim;
-        the [selected] span of line 0 pops in amber. The styling arguments
-        are honoured on the Pi renderer; the desktop build keeps its own
-        look, but must accept them all or every caller breaks."""
+        """Returns bottom-up RGB bytes, in the project's bitmap face.
+
+        Mirrors pi_backend.text_image: header in yellow with its live choice
+        knocked out in white, the cursor row and any live row in yellow, the
+        one value being turned in red, and a scroll rail down the left."""
         pg = self.pygame
         surf = pg.Surface((w, h))
-        surf.fill((10, 10, 14))
+        surf.fill(self.BG)
+        scale = self._osd_scale(w)
+        px_line = osdfont.LINE * scale
+        x0 = 8
+        surf.fill(self.RAIL, (0, 0, self.RAIL_W, h))
+        if scroll:
+            top, total = scroll
+            if total > len(lines) > 0:
+                th = max(6, int(h * len(lines) / float(total)))
+                ty = int((h - th) * top / float(max(1, total - len(lines))))
+                surf.fill(self.RAIL_THUMB, (0, ty, self.RAIL_W, th))
         for i, line in enumerate(lines):
-            if i == 0 and "[" in line and "]" in line:
+            if i == 0 and header:
+                if "[" in line and "]" in line:
+                    pre, rest = line.split("[", 1)
+                    mid, post = rest.split("]", 1)
+                    x = x0
+                    for seg, col in ((pre, self.ACCENT),
+                                     ("[" + mid + "]", self.FG),
+                                     (post, self.ACCENT)):
+                        if seg:
+                            self._osd_text(surf, x, 4, seg, scale, col)
+                            x += osdfont.text_width(seg, scale)
+                else:
+                    self._osd_text(surf, x0, 4, line, scale, self.ACCENT)
+                continue
+            y = (26 + (i - 1) * row_step) if header else (4 + i * row_step)
+            live = line.startswith(">") or "*" in line[:3]
+            fg = self.ACCENT if live else self.FG
+            if "[" in line and "]" in line:
                 pre, rest = line.split("[", 1)
                 mid, post = rest.split("]", 1)
-                x = 8
-                for seg, col in ((pre, (120, 255, 150)),
-                                 ("[" + mid + "]", (255, 200, 60)),
-                                 (post, (120, 255, 150))):
-                    if seg:
-                        r = self._font14.render(seg, True, col)
-                        surf.blit(r, (x, 4))
-                        x += r.get_width()
-            elif i == 0:
-                surf.blit(self._font14.render(line, True, (120, 255, 150)),
-                          (8, 4))
+                x = x0
+                self._osd_text(surf, x, y, pre, scale, fg)
+                x += osdfont.text_width(pre, scale)
+                self._osd_text(surf, x, y, mid, scale, self.HOT)
+                x += osdfont.text_width(mid, scale)
+                self._osd_text(surf, x, y, post, scale, fg)
             else:
-                surf.blit(self._font11.render(line, True, (150, 150, 170)),
-                          (8, 26 + (i - 1) * 15))
+                self._osd_text(surf, x0, y, line, scale, fg)
         return pg.image.tostring(surf, "RGB", True)
 
     def glyph_atlas(self, chars):

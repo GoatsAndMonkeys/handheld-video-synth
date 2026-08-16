@@ -16,6 +16,8 @@ import ctypes
 import os
 import time
 
+import osdfont
+
 GLES_PREAMBLE = "precision mediump float;\n"
 
 _VC = "/opt/vc/lib/"
@@ -500,14 +502,29 @@ def _font(size):
         return ImageFont.load_default()
 
 
-# Pixel-doubling a tiny font was tried and looked awful: DejaVu is not drawn
-# for 5px, and thresholding at that size destroys the glyph shapes rather
-# than squaring them off. The hard-edged look survives without it — killing
-# the anti-aliasing is what does the work, not making the pixels bigger.
+# Menus are set in osdfont, the project's own 5x8 bitmap face, not in
+# DejaVu. Thresholding an outline font squares its edges but leaves outline
+# proportions underneath — thin stems and round bowls that never sat on the
+# pixel grid. A font whose glyphs *are* the grid is what reads as a VCR or
+# set-top display. It also drops the dependency on a TTF existing at a fixed
+# path on the device, which previously fell back to PIL's default face and
+# looked nothing like the rest of the UI.
+# _font survives for glyph_atlas, which feeds the ascii effect, not the menus.
+MIN_COLS = 52       # never set the menu narrower than this many characters
+
+
+def _scale_for(width):
+    """Largest whole-pixel scale that still fits MIN_COLS characters.
+
+    Whole numbers only. A bitmap font at 1.5x is a smeared bitmap font, and
+    the point of this face is that every stroke lands on a pixel."""
+    return max(1, int(width) // (osdfont.ADV * MIN_COLS))
+
+
 SCALE = 1
 HEAD_PX = 18        # matches the row size — a title has no business being
                     # smaller than the rows it heads
-BODY_PX = 11                # 7px advance: 44 columns, as before the restyle
+BODY_PX = 11
 BG = (26, 112, 196)         # set-top blue, the bright saturated one
 FG = (245, 245, 250)        # body copy
 ACCENT = (255, 222, 60)     # yellow: the row you are on, and anything live
@@ -519,21 +536,22 @@ RAIL_THUMB = (130, 190, 240)
 RAIL_W = 5
 
 
-def _blit(img, xy, text, font, colour, thresh=90):
-    """Draw text as solid blocks rather than anti-aliased grey.
+def _blit(img, xy, text, scale, colour):
+    """Draw text in the bitmap face, as filled rectangles.
 
-    At this size almost every pixel of a glyph is partial coverage, so
-    filling with white lands around mid grey and doubling it gives mush.
-    Rendering to a mask and cutting each pixel fully on or fully off is what
-    a real bitmap font would have given us, and it is where the hard
-    staircase edges come from."""
-    from PIL import Image, ImageDraw
-    mask = Image.new("L", img.size, 0)
-    ImageDraw.Draw(mask).text(xy, text, fill=255, font=font)
-    img.paste(colour, mask=mask.point(lambda v: 255 if v >= thresh else 0))
+    Every pixel is fully on or fully off because the glyph says so, not
+    because a coverage mask got thresholded — so there is no size at which
+    the letterforms turn to mush. Ink comes back as horizontal runs rather
+    than single pixels: a bitmap glyph is mostly short runs, and whole-
+    rectangle fills are far cheaper than per-pixel calls through PIL."""
+    from PIL import ImageDraw
+    d = ImageDraw.Draw(img)
+    x, y = int(xy[0]), int(xy[1])
+    for rx, ry, rw, rh in osdfont.runs(text, x, y, scale):
+        d.rectangle([rx, ry, rx + rw - 1, ry + rh - 1], fill=colour)
 
 
-def _row(img, x0, y, line, font, fg, px, span=None):
+def _row(img, x0, y, line, scale, fg, px, span=None):
     """Draw a row, rendering any [span] as a solid block of colour.
 
     Two separate things get highlighted and they must not be the same mark:
@@ -542,24 +560,24 @@ def _row(img, x0, y, line, font, fg, px, span=None):
     one narrow, so a glance tells you which is which."""
     from PIL import ImageDraw
     if span is None or "[" not in line or "]" not in line:
-        _blit(img, (x0, y), line, font, fg)
+        _blit(img, (x0, y), line, scale, fg)
         return
     block, text = span
     pre, rest = line.split("[", 1)
     mid, post = rest.split("]", 1)
     x = x0
     if pre:
-        _blit(img, (x, y), pre, font, fg)
-        x += int(font.getlength(pre))
+        _blit(img, (x, y), pre, scale, fg)
+        x += osdfont.text_width(pre, scale)
     if mid:
-        wpx = int(font.getlength(mid))
+        wpx = osdfont.text_width(mid, scale)
         if block is not None:            # a solid chip behind the value
             ImageDraw.Draw(img).rectangle([x - 2, y - 1, x + wpx, y + px + 1],
                                           fill=block)
-        _blit(img, (x, y), mid, font, text)
+        _blit(img, (x, y), mid, scale, text)
         x += wpx
     if post:
-        _blit(img, (x, y), post, font, fg)
+        _blit(img, (x, y), post, scale, fg)
 
 
 def text_image(lines, w, h, body_px=None, header=True, row_step=15,
@@ -578,7 +596,13 @@ def text_image(lines, w, h, body_px=None, header=True, row_step=15,
     img = Image.new("RGB", (sw, sh), BG)
     # The menu can afford bigger type than the parameter strip: its rows are
     # short, where the strip has to fit a shader name and five numbers.
-    head, body = _font(HEAD_PX), _font(body_px or BODY_PX)
+    # One scale for the header and the rows: a title has no business being
+    # smaller than what it heads, and the outline font already set both at
+    # 18px. At the 640-wide surface this picks 2, i.e. a 12x18 cell and 53
+    # columns, against 58 columns of ~11px outline type before. Five columns
+    # is what the blocky face costs; the glyphs are half again as tall for it.
+    head = body = _scale_for(sw)
+    px_line = osdfont.LINE * body
     x0 = 8 // SCALE
     # gutter down the left, carrying a proportional thumb when there is more
     # to see than fits. scroll is (first visible row, total rows).
@@ -602,7 +626,7 @@ def text_image(lines, w, h, body_px=None, header=True, row_step=15,
                                  (post, ACCENT)):         # inverts the pair
                     if seg:
                         _blit(img, (x, y), seg, head, col)
-                        x += int(head.getlength(seg))
+                        x += osdfont.text_width(seg, head)
             else:
                 _blit(img, (x0, y), line, head, ACCENT)
             continue
@@ -611,7 +635,9 @@ def text_image(lines, w, h, body_px=None, header=True, row_step=15,
         # Without a header every row is equal, so they start from the top.
         y = ((26 + (i - 1) * row_step) if header
              else (4 + i * row_step)) // SCALE
-        px = body_px or BODY_PX
+        # the chip behind a value is sized from the glyph cell, not from the
+        # pixel size a caller asked for: the cell is what actually got drawn
+        px = px_line
         # red text rather than a chip: on a row that has already gone yellow,
         # a solid block reads as a second cursor and fights the row itself
         span = (None, HOT)

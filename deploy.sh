@@ -21,7 +21,7 @@ fi
 echo "-> $HOST: engine"
 rsync -az -v \
     main.py battery.py deckvault.py glshim.py pi_backend.py launch.sh \
-    midi.py jellyfin.py \
+    midi.py jellyfin.py osdfont.py \
     "pi@$HOST:$DEST/"
 
 # The gameplay-capture helpers live in tools/ and pi/, so they need their own
@@ -42,5 +42,5 @@ if [ "${1:-}" = "--packs" ]; then
 fi
 
 echo "-> syntax check on the device"
-ssh "pi@$HOST" "cd $DEST && python3 -m py_compile main.py battery.py deckvault.py && echo ok"
+ssh "pi@$HOST" "cd $DEST && python3 -m py_compile main.py battery.py deckvault.py osdfont.py && echo ok"
 echo "done. restart the synth to pick it up."

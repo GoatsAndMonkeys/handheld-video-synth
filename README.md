@@ -536,6 +536,7 @@ Drop a `.frag` in a pack's `shaders/`, reference it from a playlist, done.
 main.py              engine: platforms, sources, chain renderer, loader, decks
 glshim.py            GL import switch (PyOpenGL vs pi_backend)
 pi_backend.py        dispmanx EGL + GLES2 via ctypes, evdev input, PIL text
+osdfont.py           the menu face: a 5x8 bitmap font drawn for this project
 midi.py              USB MIDI in (raw ALSA on the Pi, pygame.midi desktop)
 jellyfin.py          Jellyfin library browse + transcode URLs (stdlib only)
 ytget.py             YouTube → 320x240 clips (+audio), playlist collections
