@@ -982,14 +982,26 @@ def _find_ffmpeg():
 
 
 class _FFClip:
-    """Looping realtime rawvideo pipe from ffmpeg — clip decode without
-    OpenCV. -re paces decode to wall-clock so clip video stays in step with
-    its audio; we read non-blocking and show the newest complete frame,
-    dropping any we're too slow for."""
+    """Realtime rawvideo pipe from ffmpeg — clip decode without OpenCV.
+    -re paces decode to wall-clock so clip video stays in step with its
+    audio; we show the newest complete frame and drop any we're too slow
+    for.
+
+    A reader thread does the draining, and that is the whole point of it.
+    One decoded frame is ~0.5MB and a pipe holds 64KB, so ffmpeg can only
+    hand over a frame in pieces. When the render loop did the draining
+    itself, each pass collected roughly whatever had accumulated since the
+    last one and ffmpeg spent the rest of its time blocked on write — so
+    the clip advanced at the *render* rate rather than at wall-clock, and
+    -re never got to pace anything. A heavy shader did not drop frames, it
+    put the video into slow motion: measured 61% speed at 30fps, 17% at
+    8fps, 2% at 2fps, while the audio ran on regardless. The thread keeps
+    the pipe empty so the decoder always runs at wall-clock, and the
+    render loop takes whatever frame is current whenever it gets there."""
 
     def __init__(self, path, w, h, ffmpeg):
         import subprocess
-        import fcntl
+        import threading
         self.frame_size = w * h * 3
         vf = ("scale=%d:%d:force_original_aspect_ratio=increase,"
               "crop=%d:%d,vflip" % (w, h, w, h))
@@ -998,44 +1010,58 @@ class _FFClip:
             quiet + ["-re", "-i", path,
                      "-f", "rawvideo", "-pix_fmt", "rgb24",
                      "-vf", vf, "pipe:1"],
-            stdout=subprocess.PIPE, bufsize=self.frame_size * 4)
-        fl = fcntl.fcntl(self.proc.stdout, fcntl.F_GETFL)
-        fcntl.fcntl(self.proc.stdout, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        # a bytearray grows and trims in place; concatenating bytes would
-        # copy the whole backlog every frame
-        self._buf = bytearray()
+            stdout=subprocess.PIPE, bufsize=self.frame_size)
+        # only ever the newest frame is kept, so a stalled consumer costs
+        # one frame of memory rather than an unbounded backlog
+        self._latest = None
+        self._eof = False
+        self._stop = False
+        self._lock = threading.Lock()
+        self._thread = threading.Thread(target=self._pump)
+        self._thread.daemon = True     # never hold up interpreter exit
+        self._thread.start()
+
+    def _pump(self):
+        """Drain the pipe at the decoder's pace, keeping the newest frame.
+
+        A blocking read of exactly frame_size returns a whole frame, since
+        BufferedReader only returns short at EOF."""
+        try:
+            while not self._stop:
+                frame = self.proc.stdout.read(self.frame_size)
+                if not frame or len(frame) < self.frame_size:
+                    break
+                with self._lock:
+                    self._latest = frame
+        except Exception:
+            pass                        # closed under us: treat as EOF
+        with self._lock:
+            self._eof = True
 
     def read(self):
         """Newest complete frame, or None if nothing new arrived."""
-        try:
-            while True:
-                chunk = self.proc.stdout.read(self.frame_size * 2)
-                if not chunk:
-                    break
-                self._buf += chunk
-        except (BlockingIOError, OSError):
-            pass
-        nf = len(self._buf) // self.frame_size
-        if nf == 0:
-            return None
-        end = nf * self.frame_size
-        frame = bytes(memoryview(self._buf)[end - self.frame_size:end])
-        del self._buf[:end]
-        return frame
+        with self._lock:
+            frame, self._latest = self._latest, None
+            return frame
 
     def done(self):
-        """Video ended: decoder exited and no whole frame remains buffered."""
-        return (self.proc.poll() is not None
-                and len(self._buf) < self.frame_size)
+        """Video ended: decoder finished and its last frame was taken."""
+        with self._lock:
+            return self._eof and self._latest is None
 
     def close(self):
+        self._stop = True
         try:
-            self.proc.kill()
+            self.proc.kill()            # unblocks the reader with EOF
             self.proc.wait(timeout=2)
         except Exception:
             pass
         try:
             self.proc.stdout.close()
+        except Exception:
+            pass
+        try:
+            self._thread.join(timeout=1)
         except Exception:
             pass
 
