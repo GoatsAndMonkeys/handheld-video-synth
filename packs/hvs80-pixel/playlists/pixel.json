@@ -43,6 +43,15 @@
       "speed": 0.5
     },
     {
+      "shader": "jpegcrush",
+      "x": [
+        0.7,
+        0.45,
+        0.6
+      ],
+      "speed": 0.5
+    },
+    {
       "shader": "halftone",
       "x": [
         0.45,

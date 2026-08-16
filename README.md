@@ -205,7 +205,7 @@ RetroPie openFrameworks synths target.
 | `vhs`, `solarize`, `timegrad`, `halftone`, `melt`, `lumatrail`, `thermal`, `nightvis` | tape decay, darkroom tone fold, luma time-split, CMYK print dots, wax drip, comet trails, heat camera, intensifier tube | GoatsAndMonkeys (original to this project) |
 | `zxclash`, `c64`, `cga`, `virtualboy`, `pico8` | machine palettes: Spectrum attribute clash, pepto C64 with colour cells, CGA with NTSC artifacts, Virtual Boy reds, PICO-8 (+ its hidden palette) | GoatsAndMonkeys — palettes are facts, no code copied |
 | `flipdot`, `eink` | flip-dot sign with mechanical lag and scan waves; e-paper ghosting with a travelling full refresh | GoatsAndMonkeys (original to this project) |
-| `bitstarve` | starved video stream: stale macroblocks held from the last frame, flat-block quantise with mosquito edges, chroma bleeding across block borders, a rolling keyframe sweep | GoatsAndMonkeys (original to this project) |
+| `bitstarve`, `jpegcrush` | the two compression effects, sitting together: a starved video *stream* (stale macroblocks held from the last frame, flat-block quantise with mosquito edges, chroma bleeding across block borders, a rolling keyframe sweep) and a crushed *still* (a real 4x4 DCT quantised to the floor) | GoatsAndMonkeys (original to this project) |
 | `risograph`, `photocopy`, `cyanotype` | two-ink riso with misregistration, Nth-generation self-copying photocopier, blueprint / sun print | GoatsAndMonkeys (original to this project) |
 | `timeposter`, `motionmilk`, `echostrobe` | time posterized into flipboard ticks, movement painted as light, tinted delay-tap echoes | GoatsAndMonkeys (original to this project) |
 | `droste`, `moire`, `lenticular` | recursive picture-in-picture spiral, interference fringes drawing the video, ridged-postcard time flip | GoatsAndMonkeys (original to this project) |
@@ -370,7 +370,7 @@ ported packs also ship the upstream `LICENSE`:
 | `recurboy` | 15 shaders, verbatim | [r_e_c_u_r](https://github.com/cyberboy666/r_e_c_u_r) collection, GPL-3.0 |
 | `recur` | five 2-input mixers, ported | r_e_c_u_r, GPL-3.0 |
 | `hvs80-glitch` | signal damage: datamosh, sync corrupt, TBC stutter, circuit bending | original to this project |
-| `hvs80-pixel` | reproduction processes: dither, palette crush (Game Boy, C64, CGA, Spectrum, PICO-8, Virtual Boy), print inks, glyph art, flip-dot and e-ink displays, starved-codec macroblocks | original to this project |
+| `hvs80-pixel` | reproduction processes: dither, palette crush (Game Boy, C64, CGA, Spectrum, PICO-8, Virtual Boy), print inks, glyph art, flip-dot and e-ink displays, codec damage (JPEG DCT and starved MPEG) | original to this project |
 | `libretro` | 19 CRT/LCD/retro ports | [common-shaders](https://github.com/libretro/common-shaders), per-file licences (PD/MIT/GPL) |
 | `bzzzbz` | four analog-style generators, ported | [bzzzbz](https://github.com/daviderovell0/bzzzbz), GPL-3.0 |
 | `eyesy` | six EYESY modes, reimplemented from Python | [Critter & Guitari](https://github.com/critterandguitari/EYESY_OS), BSD |

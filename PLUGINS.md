@@ -217,7 +217,7 @@ exist in ES 1.00. Do it in floats with `floor`, `fract` and `mod`.
 
 **No `transpose()`, no `inverse()`, no `matrixCompMult` tricks.** The
 built-in list is short. If you need a matrix and its transpose, write both
-out as constants — `packs/glitch/shaders/jpegcrush.frag` carries its DCT
+out as constants — `packs/hvs80-pixel/shaders/jpegcrush.frag` carries its DCT
 basis and the transpose side by side for exactly this reason.
 
 **No dynamic indexing.** A matrix or array may only be subscripted by a
