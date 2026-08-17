@@ -1162,6 +1162,7 @@ class Sources:
         self._ff = None
         self._ff_path = None
         self.jelly_titles = {}   # jellyfin item id -> title, for the bar
+        self.jelly_pick = None   # the one Jellyfin title the browser chose
         self._jelly_url = None      # memoised stream URL, see audio_path()
         self._jelly_url_for = None
         self.slots = self._scan()
@@ -1196,17 +1197,29 @@ class Sources:
                     slots.append(("clip", p))
         if has_cv2:
             slots.append(("cam", None))
-        # Jellyfin titles come from the cache on disk, never the network:
-        # scanning happens at boot and on every rescan, and a server that is
-        # off or slow must not hold the instrument at a black screen. The
-        # menu's "refresh" row is what actually talks to the server.
-        if jellyfin is not None and jellyfin.available():
-            for it in jellyfin.cached_items():
-                slots.append(("jelly", it["id"]))
-                year = it.get("year")
-                self.jelly_titles[it["id"]] = (
-                    "%s (%d)" % (it["name"], year) if year else it["name"])
+        # At most one Jellyfin slot, and only once the browser has picked a
+        # title. The library used to be preloaded here, which is what the
+        # folder browser replaced: this server alone holds 8232 episodes,
+        # and a slot each is both an unusable flat list and a lot of dict
+        # to carry on a 364MB machine. Nothing here touches the network —
+        # scanning happens at boot and on every rescan, and a server that
+        # is off or slow must never hold the instrument at a black screen.
+        if self.jelly_pick is not None:
+            slots.append(("jelly", self.jelly_pick))
         return slots
+
+    def play_jelly(self, item):
+        """Make one Jellyfin title the live source, replacing whichever was
+        there before. Takes the whole record, not just an id, because the
+        title has to survive a rescan, which rebuilds slots from scratch."""
+        self.jelly_pick = item["id"]
+        year = item.get("year")
+        self.jelly_titles[item["id"]] = (
+            "%s (%d)" % (item["name"], year) if year else item["name"])
+        self._jelly_url = self._jelly_url_for = None
+        self.slots = self._scan()
+        self.slot_idx = self.slots.index(("jelly", item["id"]))
+        self._post_switch()
 
     @staticmethod
     def _collection_of(path):
@@ -1519,6 +1532,12 @@ class Instrument:
         self.menu_level = 0
         self.menu_cat = 0
         self.menu_col = None
+        # Where the Jellyfin browser is standing, as [(node, label)]. Depth
+        # lives here rather than in menu_level, which the decks, audio and
+        # video menus all share and which only ever goes two deep: TV needs
+        # four (TV -> show -> season -> episode) and nothing else does.
+        self.jelly_path = []
+        self.jelly_rows = []     # that folder's children, fetched on entry
         self.menu_h = 330
         self.menu_tex = make_texture(self.w, self.menu_h)
         self._menu_key = None
@@ -1934,6 +1953,46 @@ class Instrument:
     # playlist slugs from ytget)
     JELLY_COL = "Jellyfin"
 
+    def _jelly_node(self):
+        return self.jelly_path[-1][0] if self.jelly_path else None
+
+    def _jelly_load(self):
+        """Fetch the current folder's children. Network-bound and blocking,
+        so it is called when a folder is entered — never from _menu_rows(),
+        which runs every frame the menu is open."""
+        node = self._jelly_node()
+        if node is None or jellyfin is None:
+            self.jelly_rows = []          # the root is three fixed folders
+            return
+        try:
+            self.jelly_rows = jellyfin.browse(node)
+        except Exception as exc:          # a browse must never close the menu
+            print("jellyfin: browse failed:", exc)
+            self.jelly_rows = []
+
+    @staticmethod
+    def _jelly_label(it):
+        """One browser row. Episodes lead with their number so a season
+        reads in order even though the list is sorted for us; folders carry
+        their child count, which is the thing you want before descending."""
+        name = it["name"]
+        kind = it.get("kind")
+        n = it.get("children")
+        if kind == "episode" and it.get("index") is not None:
+            return "S%02dE%02d  %s" % (it.get("season") or 0, it["index"],
+                                       name)
+        if kind == "season":
+            return "%-22s %s" % (name[:22],
+                                 "(%d)" % n if n else "")
+        if kind == "series":
+            return "%-26s %s" % (name[:26],
+                                 "(%d season%s)" % (n, "" if n == 1 else "s")
+                                 if n else "")
+        if kind == "boxset":
+            return "%-26s %s" % (name[:26], "(%d)" % n if n else "")
+        year = it.get("year")
+        return "%s (%d)" % (name, year) if year else name
+
     MENU_CATS = [("video", "Video source"), ("audio", "Audio source"),
                  ("output", "Output"), ("sets", "FX deck"),
                  ("deck", "Patch decks")]
@@ -1963,23 +2022,44 @@ class Instrument:
             jl = [i for i, (k, _) in enumerate(self.sources.slots)
                   if k == "jelly"]
             if self.menu_level == 2 and self.menu_col == self.JELLY_COL:
-                profs = jelly_profiles()
-                if len(profs) > 1:
-                    # the handheld travels: same library, different address
-                    # at home and away, so the server is a live choice
-                    rows.append(("hdr", None, "  servers", False))
-                    for p in profs:
-                        rows.append(("jserv", p["index"],
-                                     "%-10s %s" % (p["name"], p["url"][:28]),
-                                     p["active"]))
+                playing = (self.sources.slots[cur][1]
+                           if self.sources.mode == "jelly" else None)
+                if not self.jelly_path:
+                    profs = jelly_profiles()
+                    if len(profs) > 1:
+                        # the handheld travels: same library, different
+                        # address at home and away, so the server is a
+                        # live choice
+                        rows.append(("hdr", None, "  servers", False))
+                        for p in profs:
+                            rows.append(("jserv", p["index"],
+                                         "%-10s %s" % (p["name"],
+                                                       p["url"][:28]),
+                                         p["active"]))
                     rows.append(("hdr", None, "  library", False))
-                for i in jl:
-                    rows.append(("src", i,
-                                 self.sources.jelly_titles.get(
-                                     self.sources.slots[i][1], "?")[:40],
-                                 i == cur))
+                    for n in jellyfin.ROOT_NODES:
+                        rows.append(("jnode", (n, jellyfin.ROOT_LABELS[n]),
+                                     jellyfin.ROOT_LABELS[n], False))
+                else:
+                    # last two steps only: the full trail overruns the panel
+                    # and chopping it from the left leaves a stray slash
+                    trail = " / ".join(l for _, l in self.jelly_path[-2:])
+                    rows.append(("hdr", None, "  " + trail[:38], False))
+                    leaf = jellyfin.node_is_leaf(self._jelly_node())
+                    for it in self.jelly_rows:
+                        label = self._jelly_label(it)[:40]
+                        if leaf:
+                            rows.append(("jplay", it["id"], label,
+                                         it["id"] == playing))
+                        else:
+                            child = "%s:%s" % (it.get("kind"), it["id"])
+                            rows.append(("jnode", (child, it["name"]),
+                                         label, False))
+                    if not self.jelly_rows:
+                        rows.append(("hdr", None, "  (empty — or offline)",
+                                     False))
                 rows.append(("jrefresh", None,
-                             "* refresh library from the server", False))
+                             "* refresh this folder from the server", False))
                 return rows
             if self.menu_level == 2 and self.menu_col in cols:
                 for i in cols[self.menu_col]:
@@ -2000,8 +2080,12 @@ class Instrument:
                 # pointed at is the thing you need to know before you go in
                 act = [p for p in jelly_profiles() if p["active"]]
                 where = ("  [%s]" % act[0]["name"]) if act else ""
-                rows.append(("jcol", self.JELLY_COL, "%s%s  (%d titles)"
-                             % (self.JELLY_COL, where, len(jl)), cur in jl))
+                # No title count any more: the library is browsed a folder
+                # at a time, so there is no one number to put here, and the
+                # server you are pointed at is what matters before going in
+                rows.append(("jcol", self.JELLY_COL, "%s%s  (movies, TV, "
+                             "collections)" % (self.JELLY_COL, where),
+                             cur in jl))
         elif key == "audio":
             labels = {"off": "no audio", "clip": "video's own sound"}
             groups = radio_groups()
@@ -2216,6 +2300,11 @@ class Instrument:
             elif kind in ("vcol", "acol", "jcol"):
                 self.menu_level = 2
                 self.menu_col = i          # i is the collection name here
+                if kind == "jcol":
+                    # always enter the library at its root, never wherever
+                    # the last visit wandered off to
+                    self.jelly_path = []
+                    self.jelly_rows = []
                 sub = self._menu_rows()
                 self.menu_idx = next(
                     (j for j, r in enumerate(sub) if r[3]), 0)
@@ -2236,13 +2325,33 @@ class Instrument:
                                   (name, "" if ok else " (not saved)"),
                                   time.time() + 4.0)
                 self._toast_until = time.time() + 4.0
+            elif kind == "jnode":
+                # descend. Blocks on the server for a moment, which is what
+                # a deliberate menu action is allowed to do
+                node, label = i
+                self.jelly_path.append((node, label))
+                self._jelly_load()
+                self.menu_idx = 0
+                sub = self._menu_rows()
+                if sub and sub[0][0] == "hdr":
+                    self._menu_move(+1)    # never park on the breadcrumb
+            elif kind == "jplay":
+                it = next((r for r in self.jelly_rows if r["id"] == i), None)
+                if it is not None:
+                    self.sources.play_jelly(it)
+                    self._load_err = ("jellyfin: %s" % it["name"][:28],
+                                      time.time() + 4.0)
+                    self._toast_until = time.time() + 4.0
             elif kind == "jrefresh":
-                # the one place that talks to the server. It blocks — the
-                # picture holds for a moment on a slow library — but it is
-                # a deliberate menu action, never the render loop's problem
-                n = len(jellyfin.fetch_items()) if jellyfin else 0
-                self.sources.rescan()
-                self._load_err = ("jellyfin: %d titles" % n, time.time() + 4.0)
+                # the one place that talks to the server on purpose. It
+                # blocks — the picture holds for a moment on a slow folder —
+                # but it is a menu action, never the render loop's problem
+                if self.jelly_path:
+                    self._jelly_load()
+                    n = len(self.jelly_rows)
+                else:
+                    n = len(jellyfin.fetch_items()) if jellyfin else 0
+                self._load_err = ("jellyfin: %d items" % n, time.time() + 4.0)
                 self._toast_until = time.time() + 4.0
             elif kind == "src":
                 self.sources.slot_idx = i
@@ -2306,7 +2415,17 @@ class Instrument:
             if row and row[0] in ("deckopen", "deck"):
                 self._del_arm = (row[0], row[1])
         elif ev == "randomize":  # B = back / close
-            if self.menu_level == 2:
+            if (self.menu_level == 2 and self.menu_col == self.JELLY_COL
+                    and self.jelly_path):
+                # inside the library, back climbs one folder rather than
+                # dropping straight out of it
+                self.jelly_path.pop()
+                self._jelly_load()
+                self.menu_idx = 0
+                rows = self._menu_rows()
+                if rows and rows[0][0] == "hdr":
+                    self._menu_move(+1)
+            elif self.menu_level == 2:
                 self.menu_level = 1
                 back_kind = {"deck": "deckopen", "audio": "acol"}.get(
                     self.MENU_CATS[self.menu_cat][0], "vcol")

@@ -75,6 +75,10 @@ CACHE_PATH = os.path.join(ROOT, "jellyfin_cache.json")
 TIMEOUT = 5          # seconds per request — a dead server costs one menu
                      # beat, not a hung instrument
 PAGE_SIZE = 100      # server-side page for the listing loop
+MAX_CACHE_NODES = 80 # browsed folders kept on disk per profile, newest
+                     # first. Enough that walking back up a show is always
+                     # instant, small enough that the cache file stays a
+                     # few hundred KB on the SD card
 MAX_ITEMS = 200      # menu cap: the UI is a d-pad, not a keyboard; 200
                      # rows is already generous scrolling, and 5000 would
                      # make the source picker unusable
@@ -320,13 +324,138 @@ def _auth(cfg):
 def _record(raw):
     """One library item -> the small stable dict the menu consumes."""
     ticks = raw.get("RunTimeTicks")     # 100ns ticks, Jellyfin's unit
+    def _int(field):
+        v = raw.get(field)
+        return int(v) if isinstance(v, int) and not isinstance(v, bool) else None
     return {
         "id": str(raw.get("Id", "")),
         "name": str(raw.get("Name", "")) or "untitled",
         "year": raw.get("ProductionYear"),           # int or None
         "runtime_min": (int(ticks) // 600000000) if ticks else None,
         "kind": str(raw.get("Type", "")).lower() or "movie",
+        # Episode and season numbers, so a season lists "E02 Murder in the
+        # Mews" instead of leaning on the server's SortName collation.
+        "index": _int("IndexNumber"),
+        "season": _int("ParentIndexNumber"),
+        # How many children a folder has, for the "(13 seasons)" tail.
+        "children": _int("ChildCount"),
     }
+
+
+def _page(cfg, token, params, limit):
+    """Paged /Items fetch -> [record].
+
+    The page budget is deliberate: a confused or lying server (garbage
+    rows, a missing TotalRecordCount) has to run out of turns rather than
+    spin the menu thread forever."""
+    items, start = [], 0
+    for _ in range(limit // PAGE_SIZE + 2):
+        if len(items) >= limit:
+            break
+        ask = min(PAGE_SIZE, limit - len(items))
+        q = dict(params)
+        q["StartIndex"] = str(start)
+        q["Limit"] = str(ask)
+        body = _get_json(cfg["url"] + "/Items?" + urllib.parse.urlencode(q),
+                         headers={"X-Emby-Token": token})
+        batch = body.get("Items") if isinstance(body, dict) else None
+        if not isinstance(batch, list) or not batch:
+            break
+        for raw in batch:
+            if isinstance(raw, dict) and raw.get("Id"):
+                items.append(_record(raw))
+        start += len(batch)
+        total = body.get("TotalRecordCount")
+        if isinstance(total, int) and start >= total:
+            break
+        if len(batch) < ask:    # short page: the folder ran out
+            break
+    return items
+
+
+# The browser's shape. One flat list cannot work here — this library holds
+# 8000+ episodes and the UI is a d-pad — so the library is walked the way
+# it is already organised, and TV descends series -> season -> episode.
+ROOT_NODES = ("movies", "tv", "collections")
+ROOT_LABELS = {"movies": "movies", "tv": "TV", "collections": "collections"}
+
+
+def _node_query(node):
+    """(params, leaf) for a node's children; (None, True) for a node that
+    means nothing. leaf says the children are playable titles rather than
+    folders to descend into."""
+    kind, _, ident = str(node or "").partition(":")
+    asc = {"SortOrder": "Ascending"}
+    if kind == "movies":
+        q = {"Recursive": "true", "IncludeItemTypes": "Movie",
+             "Fields": "ProductionYear,RunTimeTicks", "SortBy": "SortName"}
+        q.update(asc)
+        return q, True
+    if kind == "tv":
+        q = {"Recursive": "true", "IncludeItemTypes": "Series",
+             "Fields": "ProductionYear,ChildCount", "SortBy": "SortName"}
+        q.update(asc)
+        return q, False
+    if kind == "collections":
+        q = {"Recursive": "true", "IncludeItemTypes": "BoxSet",
+             "Fields": "ChildCount", "SortBy": "SortName"}
+        q.update(asc)
+        return q, False
+    if kind == "series" and ident:
+        # Seasons sort by IndexNumber, never SortName: alphabetically
+        # "Season 10" lands before "Season 2", which is not how anyone
+        # reads a shelf.
+        q = {"ParentId": ident, "IncludeItemTypes": "Season",
+             "Fields": "ChildCount", "SortBy": "IndexNumber"}
+        q.update(asc)
+        return q, False
+    if kind == "season" and ident:
+        q = {"ParentId": ident, "IncludeItemTypes": "Episode",
+             "Fields": "ProductionYear,RunTimeTicks", "SortBy": "IndexNumber"}
+        q.update(asc)
+        return q, True
+    if kind == "boxset" and ident:
+        q = {"ParentId": ident, "Recursive": "true",
+             "IncludeItemTypes": "Movie,Series,Episode",
+             "Fields": "ProductionYear,RunTimeTicks", "SortBy": "SortName"}
+        q.update(asc)
+        return q, True
+    return None, True
+
+
+def node_is_leaf(node):
+    """True when this node's children are playable titles, not folders."""
+    return _node_query(node)[1]
+
+
+def browse(node, limit=MAX_ITEMS):
+    """One node's children, fresh from the server, falling back to that
+    node's cache when the server cannot be reached.
+
+    Network-bound — a menu action, never the render loop. Nodes are cached
+    separately, so walking into a season does not evict the movie list and
+    an offline browse still shows whatever was last seen there."""
+    cfg = _active_cfg()
+    if not cfg:
+        return []
+    params, _leaf = _node_query(node)
+    if params is None:
+        return []
+    try:
+        token, user_id = _auth(cfg)
+        if not token:
+            print("jellyfin: %s has no api_key and no username" % cfg["name"])
+            return cached_node(node)
+        q = dict(params)
+        if user_id:
+            q["userId"] = user_id
+        items = _page(cfg, token, q, limit)
+        _write_cache(_profile_key(cfg), node, items)
+        return items
+    except Exception as e:
+        print("jellyfin: %s browse %r failed (%s) — using cache"
+              % (cfg["name"], node, e))
+        return cached_node(node)
 
 
 def fetch_items(kinds=("Movie", "Episode"), limit=MAX_ITEMS):
@@ -384,7 +513,7 @@ def fetch_items(kinds=("Movie", "Episode"), limit=MAX_ITEMS):
         items.sort(key=lambda r: (r["name"].lower(),
                                   r["year"] or 0, r["id"]))
         items = items[:limit]
-        _write_cache(_profile_key(cfg), items)
+        _write_cache(_profile_key(cfg), "all", items)
         return items
     except Exception as e:
         print("jellyfin: %s fetch failed (%s) — using cache"
@@ -393,8 +522,12 @@ def fetch_items(kinds=("Movie", "Episode"), limit=MAX_ITEMS):
 
 
 def _read_cache():
-    """{server_url: [items]} — tolerates the single-server cache file
-    written by the pre-profiles version of this module."""
+    """{profile_key: {node: [items]}}.
+
+    Tolerates both older layouts: the single-server file written before
+    profiles existed, and the per-profile file written before the browser,
+    which held one flat list per profile. Both land under the node "all",
+    which is where fetch_items() still writes."""
     try:
         with open(CACHE_PATH) as f:
             cache = json.load(f)
@@ -402,40 +535,70 @@ def _read_cache():
         return {}
     if not isinstance(cache, dict):
         return {}
-    servers = cache.get("servers")
-    if isinstance(servers, dict):
-        return servers
     if isinstance(cache.get("server"), str):      # old one-server layout
         items = cache.get("items")
-        return {cache["server"]: items} if isinstance(items, list) else {}
-    return {}
+        return ({cache["server"]: {"all": items}}
+                if isinstance(items, list) else {})
+    servers = cache.get("servers")
+    if not isinstance(servers, dict):
+        return {}
+    out = {}
+    for key, val in servers.items():
+        if isinstance(val, list):                 # pre-browser: one flat list
+            out[key] = {"all": val}
+        elif isinstance(val, dict):
+            out[key] = dict((n, v) for n, v in val.items()
+                            if isinstance(v, list))
+    return out
 
 
-def cached_items():
-    """The active profile's last successful listing, no network — safe
-    from anywhere, including the render loop. Empty if that profile has
-    never been fetched. Entries are keyed by profile, so switching never
-    serves one profile's library under another's name — not another
-    server's, and not another account's on the same server — and switching
-    back finds the old listing still there."""
+def _cached_for(cfg):
+    """Every cached node for one profile. Falls back to the bare-url key,
+    which is what a cache written before entries carried an account uses:
+    it can only have come from a one-account-per-url config, so serving it
+    is correct until the next fetch rewrites it under the new key."""
+    cache = _read_cache()
+    per = cache.get(_profile_key(cfg))
+    if per is None:
+        per = cache.get(cfg["url"])
+    return per if isinstance(per, dict) else {}
+
+
+def cached_node(node):
+    """One node's last successful listing, no network — safe from
+    anywhere, including the render loop. Empty if that node has never been
+    browsed on this profile. Keyed by profile, so switching never serves
+    one profile's library under another's name — not another server's, and
+    not another account's on the same server — and switching back finds
+    the old listing still there."""
     cfg = _active_cfg()
     if not cfg:
         return []
-    cache = _read_cache()
-    items = cache.get(_profile_key(cfg))
-    if not isinstance(items, list):
-        # Cache written before entries carried an account: it can only
-        # have come from a one-account-per-url config, so serving it is
-        # correct, and the next fetch rewrites it under the new key.
-        items = cache.get(cfg["url"])
+    items = _cached_for(cfg).get(node)
     return items if isinstance(items, list) else []
 
 
-def _write_cache(profile_key, items):
-    """Merge this profile's listing into the shared cache file, keeping
-    every other profile's listing intact."""
+def cached_items():
+    """The flat whole-library listing that fetch_items() maintains, for
+    callers that predate the folder browser."""
+    return cached_node("all")
+
+
+def _write_cache(profile_key, node, items):
+    """Merge one node's listing into the shared cache file, keeping every
+    other node and profile intact."""
     cache = _read_cache()
-    cache[profile_key] = items
+    per = cache.setdefault(profile_key, {})
+    if not isinstance(per, dict):
+        per = cache[profile_key] = {}
+    per.pop(node, None)          # re-insert so it counts as most recent
+    per[node] = items
+    # Bound the file. 575 seasons browsed at ~14 episodes each would put
+    # megabytes on the SD card of an instrument that only ever needs the
+    # last few folders back. Dicts keep insertion order, so dropping from
+    # the front drops what was browsed longest ago.
+    while len(per) > MAX_CACHE_NODES:
+        per.pop(next(iter(per)))
     # Drop entries for profiles no longer in the config, so the file does
     # not accumulate every address the handheld has ever visited. Bare-url
     # keys are kept as long as a profile still uses that url: they are the

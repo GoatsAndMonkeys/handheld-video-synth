@@ -354,13 +354,28 @@ switching accounts never leaves you looking at the previous account's
 library. Run `python3 jellyfin.py` on the device to list the profiles and
 check each one is reachable.
 
+**The library is browsed a folder at a time**, not as one list. The
+Jellyfin row opens onto **movies**, **TV** and **collections**; TV
+descends show → season → episode, and a collection opens onto its
+contents. **B** climbs one folder, and climbing out of the root leaves
+the library. Picking a title makes it the live video source.
+
+That shape is not decoration. A modest library here is 80 movies and
+8232 episodes, and a flat list of that is unusable on a d-pad — and,
+before this, it also meant 8232 slots held in memory on a 364 MB
+machine. Folders are fetched when you enter them, so nothing is loaded
+until you ask for it.
+
 The server transcodes to 480×360 H.264 on the way out, so the handheld
 never tries to decode a 4K remux — the transcode is the point, not a
-compromise. Titles are cached to `jellyfin_cache.json` **per profile**, so
-the menu opens instantly, works offline, and keeps the home library listed
-while you are away from home. Nothing ages the cache out by time
-(this Pi has no RTC and file mtimes lie); **✱ refresh library from the
-server** in the Jellyfin folder re-reads it.
+compromise. Listings are cached to `jellyfin_cache.json` **per profile
+and per folder**, so a folder you have visited opens instantly and still
+opens offline, and the home library stays browsable while you are away
+from home. The file is bounded to the 80 most recently visited folders
+per profile, so it cannot grow without limit on the SD card. Nothing
+ages the cache out by time (this Pi has no RTC and file mtimes lie);
+**✱ refresh this folder from the server** re-reads whichever folder you
+are standing in.
 
 > **One security note.** The API key rides in the stream URL's query
 > string. Over plain `http://` on a network you do not trust, it is in the
