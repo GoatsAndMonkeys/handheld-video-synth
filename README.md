@@ -307,6 +307,12 @@ device. A full example, using every field the reader understands:
       "api_key": "3f8a1c9e5b7d4a2f8e6c1b9d7a3f5e2c"
     },
     {
+      "name": "kids",
+      "url": "http://192.168.1.50:8096",
+      "username": "kids",
+      "password": "letmein"
+    },
+    {
       "name": "remote",
       "url": "https://media.example.com",
       "api_key": "3f8a1c9e5b7d4a2f8e6c1b9d7a3f5e2c"
@@ -338,16 +344,21 @@ an existing config never needs rewriting:
 {"url": "http://your-server:8096", "api_key": "..."}
 ```
 
-**Multiple profiles exist because your server has more than one address** —
-a LAN address at home and a public one elsewhere. Switching profiles in the
-Jellyfin folder swaps the visible library. Run `python3 jellyfin.py` on the
-device to list the profiles and check each one is reachable.
+**Profiles cover two separate needs.** One is a server with more than one
+address — a LAN address at home, a public one elsewhere. The other is more
+than one *account* on the same server: give each its own entry with the
+same `url` and a different `username`, as `home` and `kids` above. Either
+way, switching happens in the Jellyfin folder and swaps the visible
+library. Each profile keeps its own login and its own cached listing, so
+switching accounts never leaves you looking at the previous account's
+library. Run `python3 jellyfin.py` on the device to list the profiles and
+check each one is reachable.
 
 The server transcodes to 480×360 H.264 on the way out, so the handheld
 never tries to decode a 4K remux — the transcode is the point, not a
-compromise. Titles are cached to `jellyfin_cache.json` **per server url**,
-so the menu opens instantly, works offline, and keeps the home library
-listed while you are away from home. Nothing ages the cache out by time
+compromise. Titles are cached to `jellyfin_cache.json` **per profile**, so
+the menu opens instantly, works offline, and keeps the home library listed
+while you are away from home. Nothing ages the cache out by time
 (this Pi has no RTC and file mtimes lie); **✱ refresh library from the
 server** in the Jellyfin folder re-reads it.
 

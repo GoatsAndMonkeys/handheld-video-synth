@@ -53,13 +53,15 @@ Nothing raises out of the public functions; failure is an empty result
 and one printed line.
 
 The on-disk cache (`jellyfin_cache.json`) keeps the last successful
-listing **per server url**, so switching profiles does not throw away the
-other server's menu: away from home, the home library still lists from
+listing **per profile**, so switching profiles does not throw away the
+other one's menu: away from home, the home library still lists from
 cache. Nothing here ages the cache out by time — this Pi has no RTC and
 file mtimes lie. The cache is a fallback that the next successful
-fetch_items() overwrites, and entries are keyed by the url that produced
-them, so a stale entry can never be served for the wrong server.
+fetch_items() overwrites, and entries are keyed by the profile that
+produced them — url *and* account — so a stale entry can never be served
+for the wrong server, nor for the wrong account on the right one.
 """
+import hashlib
 import json
 import os
 import urllib.error
@@ -88,12 +90,13 @@ DEFAULT_VBITRATE = 1200000   # bits/s — comfortable H.264 at 480x360
 DEFAULT_ABITRATE = 128000
 
 # Session state from AuthenticateByName (username/password profiles only).
-# The token is tagged with the url it was issued for: a token is worthless
-# — worse, confusing — against a different server, and the active profile
-# can change either through set_active() or by someone editing the config
-# under us. Tagging means a switch can never silently authenticate the
-# wrong box, however the switch happened.
-_session = {"url": None, "token": None, "user": None}
+# The token is tagged with the profile key it was issued for — url *and*
+# account. Against a different server a token is merely worthless; against
+# a different account on the *same* server it is worse, because the fetch
+# succeeds and quietly returns the previous user's library. The active
+# profile can change through set_active() or by someone editing the config
+# under us, so the tag is what makes a switch honest however it happened.
+_session = {"key": None, "token": None, "user": None}
 
 # Session-only active index, used when the config file could not be
 # written: the switch still has to work for tonight's gig even if the SD
@@ -142,6 +145,30 @@ def _norm_profile(raw, index):
         "password": str(raw.get("password", "")),
         "user_id": str(raw.get("user_id", "")),
     }
+
+
+def _account_tag(cfg):
+    """What tells two profiles on the *same* server apart: the account.
+    A username is readable and not a secret, so it is used as-is. An
+    api_key would work too but must never be written to the cache file,
+    so it is reduced to a short digest — enough to separate two keys,
+    useless to anyone who reads it."""
+    if cfg["username"]:
+        return cfg["username"]
+    if cfg["api_key"]:
+        return "k" + hashlib.sha256(
+            cfg["api_key"].encode("utf-8")).hexdigest()[:12]
+    return ""
+
+
+def _profile_key(cfg):
+    """Identity of a profile for session and cache purposes. The url alone
+    is not enough: two accounts on one server share a url, and keying on it
+    would hand one account's token and library to the other. A profile with
+    no credentials at all keys on the bare url, which is also what older
+    cache files use, so they keep working."""
+    tag = _account_tag(cfg)
+    return cfg["url"] + "#" + tag if tag else cfg["url"]
 
 
 def _all_profiles():
@@ -239,7 +266,7 @@ def _active_cfg():
 
 
 def _forget_session():
-    _session["url"] = _session["token"] = _session["user"] = None
+    _session["key"] = _session["token"] = _session["user"] = None
 
 
 def available():
@@ -272,7 +299,7 @@ def _auth(cfg):
     once and reuse the token for as long as the profile stays active."""
     if cfg["api_key"]:
         return cfg["api_key"], cfg["user_id"]
-    if _session["token"] and _session["url"] == cfg["url"]:
+    if _session["token"] and _session["key"] == _profile_key(cfg):
         return _session["token"], _session["user"]
     if not cfg["username"]:
         return None, None
@@ -284,7 +311,7 @@ def _auth(cfg):
         cfg["url"] + "/Users/AuthenticateByName",
         headers={"X-Emby-Authorization": ident},
         post_json={"Username": cfg["username"], "Pw": cfg["password"]})
-    _session["url"] = cfg["url"]
+    _session["key"] = _profile_key(cfg)
     _session["token"] = body.get("AccessToken")
     _session["user"] = (body.get("User") or {}).get("Id") or cfg["user_id"]
     return _session["token"], _session["user"]
@@ -357,7 +384,7 @@ def fetch_items(kinds=("Movie", "Episode"), limit=MAX_ITEMS):
         items.sort(key=lambda r: (r["name"].lower(),
                                   r["year"] or 0, r["id"]))
         items = items[:limit]
-        _write_cache(cfg["url"], items)
+        _write_cache(_profile_key(cfg), items)
         return items
     except Exception as e:
         print("jellyfin: %s fetch failed (%s) — using cache"
@@ -386,26 +413,39 @@ def _read_cache():
 
 def cached_items():
     """The active profile's last successful listing, no network — safe
-    from anywhere, including the render loop. Empty if that server has
-    never been fetched. Entries are keyed by server url, so switching
-    profiles never serves one server's library under another's name, and
-    switching back finds the old listing still there."""
+    from anywhere, including the render loop. Empty if that profile has
+    never been fetched. Entries are keyed by profile, so switching never
+    serves one profile's library under another's name — not another
+    server's, and not another account's on the same server — and switching
+    back finds the old listing still there."""
     cfg = _active_cfg()
     if not cfg:
         return []
-    items = _read_cache().get(cfg["url"])
+    cache = _read_cache()
+    items = cache.get(_profile_key(cfg))
+    if not isinstance(items, list):
+        # Cache written before entries carried an account: it can only
+        # have come from a one-account-per-url config, so serving it is
+        # correct, and the next fetch rewrites it under the new key.
+        items = cache.get(cfg["url"])
     return items if isinstance(items, list) else []
 
 
-def _write_cache(server_url, items):
-    """Merge this server's listing into the shared cache file, keeping
+def _write_cache(profile_key, items):
+    """Merge this profile's listing into the shared cache file, keeping
     every other profile's listing intact."""
     cache = _read_cache()
-    cache[server_url] = items
-    # Drop entries for servers no longer in the config, so the file does
-    # not accumulate every address the handheld has ever visited.
-    known = set(p["url"] for p in _all_profiles())
-    known.add(server_url)
+    cache[profile_key] = items
+    # Drop entries for profiles no longer in the config, so the file does
+    # not accumulate every address the handheld has ever visited. Bare-url
+    # keys are kept as long as a profile still uses that url: they are the
+    # pre-account cache, and dropping them would blank a profile's offline
+    # menu until its first fetch on the new scheme.
+    known = set()
+    for p in _all_profiles():
+        known.add(_profile_key(p))
+        known.add(p["url"])
+    known.add(profile_key)
     cache = dict((k, v) for k, v in cache.items() if k in known)
     tmp = CACHE_PATH + ".tmp"
     try:
