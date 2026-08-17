@@ -604,7 +604,13 @@ class RadioAudio:
         self.current_path = None
         if name == "clip":
             if clip_path:
-                self.start(clip_path, is_file=True)
+                # A Jellyfin title arrives as an http(s) URL, not a file.
+                # The server paces its own transcode and there is nothing
+                # on disk to loop, so -stream_loop/-re would fight it; the
+                # video pipe is what notices the end and moves on.
+                self.start(clip_path,
+                           is_file=not clip_path.startswith(("http://",
+                                                             "https://")))
                 self.current_path = clip_path
         elif url:
             self.start(url)
@@ -1129,6 +1135,8 @@ class Sources:
         self._ff = None
         self._ff_path = None
         self.jelly_titles = {}   # jellyfin item id -> title, for the bar
+        self._jelly_url = None      # memoised stream URL, see audio_path()
+        self._jelly_url_for = None
         self.slots = self._scan()
         self.slot_idx = 0
         self._held = False      # freeze holds the picture, not the decoder
@@ -1201,6 +1209,30 @@ class Sources:
             return self.jelly_titles.get(path, "jellyfin")[:12]
         return kind
 
+    def audio_path(self):
+        """What an audio player should open for the current source: a local
+        file, or a Jellyfin title's stream URL.
+
+        Jellyfin sends one stream carrying both tracks and the video pipe
+        throws the audio away (it asks ffmpeg for rawvideo), so the radio
+        has to open the URL itself or the title plays silent. That is a
+        second transcode of the same title on the server — the same deal
+        local clips already make, where the radio opens the file the video
+        pipe is already reading.
+
+        Memoised: the caller compares this against the tuned path every
+        tick, and on a username profile rebuilding the URL can cost an
+        auth round trip."""
+        kind, path = self.slots[self.slot_idx]
+        if kind == "clip":
+            return path
+        if kind != "jelly" or jellyfin is None:
+            return None
+        if self._jelly_url_for != path:
+            self._jelly_url = jellyfin.stream_url(path)
+            self._jelly_url_for = path
+        return self._jelly_url
+
     def select(self, kind):
         for i, (k, _) in enumerate(self.slots):
             if k == kind:
@@ -1210,6 +1242,9 @@ class Sources:
     def rescan(self):
         """Pick up newly added clips (e.g. fresh recordings)."""
         cur = self.slots[self.slot_idx]
+        # A rescan follows a server switch, and the memoised URL carries the
+        # old server's token in its query string.
+        self._jelly_url = self._jelly_url_for = None
         self.slots = self._scan()
         if cur in self.slots:
             self.slot_idx = self.slots.index(cur)
@@ -2453,8 +2488,10 @@ class Instrument:
     MIDI_PARAMS = ("x0", "x1", "x2", "x3", "speed")
 
     def current_clip_path(self):
-        kind, path = self.sources.slots[self.sources.slot_idx]
-        return path if kind == "clip" else None
+        """The current source as something ffmpeg can open — a file for a
+        local clip, a stream URL for a Jellyfin title, None for generated
+        and camera sources, which have no sound of their own."""
+        return self.sources.audio_path()
 
     def _set_output(self, i):
         if i == self.output_idx:
