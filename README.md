@@ -289,19 +289,72 @@ you never inherit a stray default grabbing a knob you didn't map.
 
 Point the synth at your own [Jellyfin](https://jellyfin.org) server and
 your film library becomes a video source — the Loader lists it beside the
-clip collections. Put a `jellyfin.json` next to `main.py` (gitignored,
-like `stream.json`):
+clip collections.
+
+Config lives in **`jellyfin.json`, next to `main.py`** — on the deck that
+is `/home/pi/handheld-video-synth/jellyfin.json`. It is gitignored like
+`stream.json`, and `deploy.sh` deliberately does **not** send it, so your
+credentials never travel from a laptop or into the repo. Write it on the
+device. A full example, using every field the reader understands:
+
+```json
+{
+  "active": 0,
+  "servers": [
+    {
+      "name": "home",
+      "url": "http://192.168.1.50:8096",
+      "api_key": "3f8a1c9e5b7d4a2f8e6c1b9d7a3f5e2c"
+    },
+    {
+      "name": "remote",
+      "url": "https://media.example.com",
+      "api_key": "3f8a1c9e5b7d4a2f8e6c1b9d7a3f5e2c"
+    },
+    {
+      "name": "gigs",
+      "url": "http://10.0.0.12:8096",
+      "username": "vj",
+      "password": "hunter2",
+      "user_id": "a1b2c3d4e5f60718293a4b5c6d7e8f90"
+    }
+  ]
+}
+```
+
+| field | required | what it does |
+| --- | --- | --- |
+| `active` | no | which profile is live, as an index into `servers`. Defaults to 0. The menu rewrites this when you switch servers |
+| `url` | **yes** | scheme, host and port. No trailing slash |
+| `api_key` | preferred | minted in *Administration → API Keys*. No auth round trip — it goes straight into every request |
+| `username` + `password` | alternative | for servers where you can't mint a key. Costs one `AuthenticateByName` call, done lazily |
+| `user_id` | rarely | scopes the listing. Only needed on servers that hide `/Items` from key-only callers — with `username` it is discovered automatically |
+| `name` | no | what the menu shows. A profile without one is listed by its url host |
+
+The older single-server form is still read, as one profile at index 0, so
+an existing config never needs rewriting:
 
 ```json
 {"url": "http://your-server:8096", "api_key": "..."}
 ```
 
-The API key comes from Jellyfin's dashboard (*Administration → API Keys*);
-`username`/`password` works instead if you prefer. The server transcodes
-to 480×360 H.264 on the way out, so the handheld never tries to decode a
-4K remux — the transcode is the point, not a compromise. Titles are cached
-on disk so the menu opens instantly and works offline; **✱ refresh library
-from the server** in the Jellyfin folder re-reads it.
+**Multiple profiles exist because your server has more than one address** —
+a LAN address at home and a public one elsewhere. Switching profiles in the
+Jellyfin folder swaps the visible library. Run `python3 jellyfin.py` on the
+device to list the profiles and check each one is reachable.
+
+The server transcodes to 480×360 H.264 on the way out, so the handheld
+never tries to decode a 4K remux — the transcode is the point, not a
+compromise. Titles are cached to `jellyfin_cache.json` **per server url**,
+so the menu opens instantly, works offline, and keeps the home library
+listed while you are away from home. Nothing ages the cache out by time
+(this Pi has no RTC and file mtimes lie); **✱ refresh library from the
+server** in the Jellyfin folder re-reads it.
+
+> **One security note.** The API key rides in the stream URL's query
+> string. Over plain `http://` on a network you do not trust, it is in the
+> clear. Use `https://`, or reach the server over Tailscale or WireGuard,
+> if the deck leaves the house.
 
 ## The Loader (Start)
 
