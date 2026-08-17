@@ -598,34 +598,58 @@ class RadioAudio:
             return  # already scheduled; don't keep resetting the timer
         self._pending = (time.time() + 0.35, clip_path)
 
+    @staticmethod
+    def _describe(src):
+        """A log-safe name for a source. A Jellyfin URL carries the auth
+        token in its query string, so the query never reaches the log."""
+        if src.startswith(("http://", "https://")):
+            return src.split("?", 1)[0]
+        return os.path.basename(src)
+
     def _tune(self, clip_path):
         name, url = RADIO_STATIONS[self.station_idx][:2]
         self.stop()
         self.current_path = None
         if name == "clip":
             if clip_path:
-                # A Jellyfin title arrives as an http(s) URL, not a file.
-                # The server paces its own transcode and there is nothing
-                # on disk to loop, so -stream_loop/-re would fight it; the
+                # A Jellyfin title arrives as an http(s) URL, not a file:
+                # nothing on disk to loop, but still paced, because the
+                # server races ahead if nothing holds it to realtime. The
                 # video pipe is what notices the end and moves on.
-                self.start(clip_path,
-                           is_file=not clip_path.startswith(("http://",
-                                                             "https://")))
+                is_url = clip_path.startswith(("http://", "https://"))
+                self.start(clip_path, is_file=not is_url, paced=True)
                 self.current_path = clip_path
+                print("radio: clip audio <- %s (%s)"
+                      % (self._describe(clip_path),
+                         "playing" if self.proc is not None else "FAILED"))
+            else:
+                print("radio: clip audio selected, but this source has none")
         elif url:
             self.start(url)
 
-    def start(self, src, is_file=False, with_sound=True):
+    def start(self, src, is_file=False, with_sound=True, paced=None):
+        """paced throttles the input to realtime; it defaults to is_file.
+
+        The three sources want different things. A local clip loops and is
+        paced. A radio station is genuinely live, so it is neither: the
+        server sends it at realtime and -re would only add lag. A Jellyfin
+        title is the case in between — there is nothing on disk to loop,
+        but the server transcodes ahead as fast as it can, and unpaced
+        ffmpeg will pull it at ~17x realtime and starve the video pipe of
+        CPU on a four-core Zero 2W."""
         import subprocess
         import fcntl
-        pre = ["-stream_loop", "-1", "-re"] if is_file else []
+        if paced is None:
+            paced = is_file
+        pre = (["-stream_loop", "-1"] if is_file else []) \
+            + (["-re"] if paced else [])
         cmd = ([self.ffmpeg, "-loglevel", "quiet"] + pre + ["-i", src,
                 "-f", "s16le", "-ac", "1", "-ar", str(self.RATE), "pipe:1"])
         if IS_PI and with_sound:
             # one process, two outputs: analysis pipe + speaker (saves ~a
             # whole ffmpeg on a 237MB machine)
             cmd += ["-f", "alsa", "default"]
-        self._src = (src, is_file)
+        self._src = (src, is_file, paced)
         try:
             self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             fl = fcntl.fcntl(self.proc.stdout, fcntl.F_GETFL)
@@ -688,8 +712,11 @@ class RadioAudio:
             self.proc = None
             src = getattr(self, "_src", None)
             self._deaths += 1
+            print("radio: player died (%d) on %s" %
+                  (self._deaths,
+                   self._describe(src[0]) if src else "?"))
             if src is not None and self._deaths <= 5:
-                self.start(src[0], is_file=src[1],
+                self.start(src[0], is_file=src[1], paced=src[2],
                            with_sound=self._deaths <= 2)
             return
         import array
